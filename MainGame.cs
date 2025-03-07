@@ -129,7 +129,7 @@ namespace IsometricMapViewer
 
         public void ExportMap()
         {
-            _exporter.ExportToTmx();
+            _exporter.ExportToPng();
         }
 
         protected override void Dispose(bool disposing)

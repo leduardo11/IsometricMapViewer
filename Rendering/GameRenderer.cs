@@ -173,52 +173,6 @@ namespace IsometricMapViewer.Rendering
             _spriteBatch.End();
         }
 
-        private static string GetSpriteFileName(int spriteId)
-        {
-            if (spriteId == -1) return "None";
-
-            var spriteLoad = Constants.SpritesToLoad
-                .FirstOrDefault(s => spriteId >= s.startIndex && spriteId < s.startIndex + s.count);
-
-            return spriteLoad != default
-                ? spriteLoad.fileName
-                : "Unknown";
-        }
-
-        public void Dispose()
-        {
-            foreach (var spriteFile in _spriteFiles.Values)
-            {
-                spriteFile.Dispose();
-            }
-            _highlightTexture.Dispose();
-        }
-
-        private static Vector2 ToScreenCoordinates(int tileX, int tileY)
-        {
-            return new Vector2(tileX * Constants.TileWidth, tileY * Constants.TileHeight);
-        }
-
-        private Constants.SpriteFrame GetSpriteFrame(int spriteId, int frameIndex)
-        {
-            foreach (var spriteFile in _spriteFiles.Values)
-            {
-                var sprite = spriteFile.GetSpriteById(spriteId);
-                if (sprite != null && frameIndex >= 0 && frameIndex < sprite.Frames.Count)
-                    return sprite.Frames[frameIndex];
-            }
-
-            return new Constants.SpriteFrame
-            {
-                Left = 0,
-                Top = 0,
-                Width = Constants.TileWidth,
-                Height = Constants.TileHeight,
-                PivotX = 0,
-                PivotY = 0
-            };
-        }
-
         public Texture2D RenderFullMapToTexture()
         {
             int mapWidth = _map.Width * Constants.TileWidth;
@@ -289,6 +243,57 @@ namespace IsometricMapViewer.Rendering
             _spriteBatch.GraphicsDevice.SetRenderTarget(null);
 
             return renderTarget;
+        }
+
+        public Texture2D CreateTexture2D(int width, int height)
+        {
+            return new Texture2D(_spriteBatch.GraphicsDevice, width, height);
+        }
+
+        public void Dispose()
+        {
+            foreach (var spriteFile in _spriteFiles.Values)
+            {
+                spriteFile.Dispose();
+            }
+            _highlightTexture.Dispose();
+        }
+
+        private static string GetSpriteFileName(int spriteId)
+        {
+            if (spriteId == -1) return "None";
+
+            var spriteLoad = Constants.SpritesToLoad
+                .FirstOrDefault(s => spriteId >= s.startIndex && spriteId < s.startIndex + s.count);
+
+            return spriteLoad != default
+                ? spriteLoad.fileName
+                : "Unknown";
+        }
+
+        private static Vector2 ToScreenCoordinates(int tileX, int tileY)
+        {
+            return new Vector2(tileX * Constants.TileWidth, tileY * Constants.TileHeight);
+        }
+
+        private Constants.SpriteFrame GetSpriteFrame(int spriteId, int frameIndex)
+        {
+            foreach (var spriteFile in _spriteFiles.Values)
+            {
+                var sprite = spriteFile.GetSpriteById(spriteId);
+                if (sprite != null && frameIndex >= 0 && frameIndex < sprite.Frames.Count)
+                    return sprite.Frames[frameIndex];
+            }
+
+            return new Constants.SpriteFrame
+            {
+                Left = 0,
+                Top = 0,
+                Width = Constants.TileWidth,
+                Height = Constants.TileHeight,
+                PivotX = 0,
+                PivotY = 0
+            };
         }
 
         private Sprite GetSprite(int spriteID)
