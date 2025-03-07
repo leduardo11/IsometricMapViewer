@@ -63,7 +63,7 @@ namespace IsometricMapViewer.Rendering
             foreach (var tile in visibleTiles)
             {
                 Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
-                DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false); // Tile sprite
+                DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false);
             }
 
             if (ShowObjects)
@@ -71,7 +71,7 @@ namespace IsometricMapViewer.Rendering
                 foreach (var tile in visibleTiles)
                 {
                     Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
-                    DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true); // Object sprite
+                    DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
                 }
             }
             _spriteBatch.End();
@@ -145,18 +145,16 @@ namespace IsometricMapViewer.Rendering
 
         private void DrawSpriteIfExists(int spriteId, int frameIndex, Vector2 position, bool isObjectSprite = false)
         {
-            if (!_spriteTextures.TryGetValue(spriteId, out Texture2D texture)) return;
+            if (!_spriteTextures.TryGetValue(spriteId, out Texture2D texture))
+                return;
             Constants.SpriteFrame frame = GetSpriteFrame(spriteId, frameIndex);
             Rectangle sourceRect = new(frame.Left, frame.Top, frame.Width, frame.Height);
-            Vector2 pivot = new(frame.PivotX, frame.PivotY);
-
             if (isObjectSprite)
             {
-                position.Y -= frame.Height - frame.PivotY;
-                position.X += (Constants.TileWidth - frame.Width) / 2;
+                position.X += frame.PivotX;
+                position.Y += frame.PivotY;
             }
-
-            _spriteBatch.Draw(texture, position, sourceRect, Color.White, 0f, pivot, 1f, SpriteEffects.None, 0f);
+            _spriteBatch.Draw(texture, position, sourceRect, Color.White);
         }
 
         public void DrawDebugOverlay(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
@@ -176,21 +174,10 @@ namespace IsometricMapViewer.Rendering
         {
             int mapWidth = _map.Width * Constants.TileWidth;
             int mapHeight = _map.Height * Constants.TileHeight;
-
-            RenderTarget2D renderTarget = new(
-                _spriteBatch.GraphicsDevice,
-                mapWidth,
-                mapHeight
-            );
-
+            RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
             _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
             _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
-
-            _spriteBatch.Begin(
-                SpriteSortMode.Texture,
-                BlendState.NonPremultiplied,
-                SamplerState.PointClamp
-            );
+            _spriteBatch.Begin(SpriteSortMode.Texture, BlendState.NonPremultiplied, SamplerState.PointClamp);
 
             for (int y = 0; y < _map.Height; y++)
             {
@@ -198,11 +185,10 @@ namespace IsometricMapViewer.Rendering
                 {
                     var tile = _map.Tiles[x, y];
                     Vector2 pos = new(x * Constants.TileWidth, y * Constants.TileHeight);
-                    DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos);
-                    DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos);
+                    DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false);
+                    DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
                 }
             }
-
             _spriteBatch.End();
             _spriteBatch.GraphicsDevice.SetRenderTarget(null);
             return renderTarget;
