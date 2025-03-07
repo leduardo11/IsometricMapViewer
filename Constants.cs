@@ -51,11 +51,11 @@ namespace IsometricMapViewer
         ];
 
         // Default camera zoom level to show the entire 250x250 map in the 1280x720 viewport (eagle view)
-        public const float DefaultCameraZoom = 1f;
+        public const float DefaultCameraZoom = 0.14f;
 
         // Minimum and maximum zoom levels for camera control, allowing scaling for visibility
         public const float MinCameraZoom = 0.01f; // Allow even further zoom out for eagle view
-        public const float MaxCameraZoom = 3.0f; // Keep max zoom for finer control if needed
+        public const float MaxCameraZoom = 2.0f; // Keep max zoom for finer control if needed
 
         // Camera movement speed, scaled by tile width for consistent movement
         public const float BaseCameraSpeed = 10.0f;

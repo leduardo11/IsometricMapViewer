@@ -8,6 +8,7 @@ namespace IsometricMapViewer.Handlers
     {
         private Vector2 _position;
         private float _zoom;
+        private float _minZoom;
         private Vector2 _minBoundary;
         private Vector2 _maxBoundary;
         private readonly GraphicsDevice _graphicsDevice;
@@ -20,7 +21,7 @@ namespace IsometricMapViewer.Handlers
         public float Zoom
         {
             get => _zoom;
-            private set => _zoom = MathHelper.Clamp(value, Constants.MinCameraZoom, Constants.MaxCameraZoom);
+            private set => _zoom = MathHelper.Clamp(value, _minZoom, Constants.MaxCameraZoom);
         }
 
         public Matrix TransformMatrix { get; private set; }
@@ -33,29 +34,30 @@ namespace IsometricMapViewer.Handlers
             _zoom = Constants.DefaultCameraZoom;
             _position = Vector2.Zero;
             Initialize();
-            _position = new Vector2(_map.Width * Constants.TileWidth / 2, _map.Height * Constants.TileHeight / 2); 
+            _position = new Vector2(_map.Width * Constants.TileWidth / 2, _map.Height * Constants.TileHeight / 2);
+            CalculateMinZoom();
         }
 
         private void Initialize()
         {
             int tileWidth = Constants.TileWidth;
             int tileHeight = Constants.TileHeight;
-            var mapWidth = _map.Width * tileWidth; 
-            var mapHeight = _map.Height * tileHeight; 
+            var mapWidth = _map.Width * tileWidth;
+            var mapHeight = _map.Height * tileHeight;
             _minBoundary = new Vector2(0, 0);
             _maxBoundary = new Vector2(mapWidth - Viewport.Width / _zoom, mapHeight - Viewport.Height / _zoom);
             int centerX = _map.Width / 2;
-            int centerY = _map.Height / 2; 
+            int centerY = _map.Height / 2;
             FocusOnPoint(new Vector2(centerX * tileWidth, centerY * tileHeight));
             UpdateViewRange();
         }
 
         public void FitToMap()
         {
-            float zoomWidth = Viewport.Width / (float)(_map.Width * Constants.TileWidth); 
-            float zoomHeight = Viewport.Height / (float)(_map.Height * Constants.TileHeight); 
+            float zoomWidth = Viewport.Width / (float)(_map.Width * Constants.TileWidth);
+            float zoomHeight = Viewport.Height / (float)(_map.Height * Constants.TileHeight);
             Zoom = Math.Min(zoomWidth, zoomHeight);
-            Vector2 mapCenter = new(_map.Width * Constants.TileWidth / 2, _map.Height * Constants.TileHeight / 2); 
+            Vector2 mapCenter = new(_map.Width * Constants.TileWidth / 2, _map.Height * Constants.TileHeight / 2);
             FocusOnPoint(mapCenter);
         }
 
@@ -69,11 +71,11 @@ namespace IsometricMapViewer.Handlers
         public void ZoomAt(float zoomFactor, Vector2 screenPosition)
         {
             var worldBefore = ScreenToWorld(screenPosition);
-            Zoom *= zoomFactor;
-            var worldAfter = ScreenToWorld(screenPosition);
-            _position += worldBefore - worldAfter;
-            ClampPosition();
-            UpdateTransformMatrix();
+            Zoom *= zoomFactor; 
+            var worldAfter = ScreenToWorld(screenPosition); 
+            _position += worldBefore - worldAfter;      
+            ClampPosition();                             
+            UpdateTransformMatrix();                        
         }
 
         public void FocusOnPoint(Vector2 worldPosition)
@@ -92,7 +94,7 @@ namespace IsometricMapViewer.Handlers
         {
             int tileWidth = Constants.TileWidth;
             int tileHeight = Constants.TileHeight;
-            int maxViewRange = Math.Max(_map.Width, _map.Height); 
+            int maxViewRange = Math.Max(_map.Width, _map.Height);
             _viewRangeX = Math.Min((int)(Viewport.Width / (tileWidth * _zoom)) + 1, maxViewRange);
             _viewRangeY = Math.Min((int)(Viewport.Height / (tileHeight * _zoom)) + 1, maxViewRange);
             var topLeft = ScreenToWorld(Vector2.Zero);
@@ -105,7 +107,7 @@ namespace IsometricMapViewer.Handlers
         {
             int tileWidth = Constants.TileWidth;
             int tileHeight = Constants.TileHeight;
-            int maxViewRange = Math.Max(_map.Width, _map.Height); 
+            int maxViewRange = Math.Max(_map.Width, _map.Height);
             _viewRangeX = Math.Min((int)(Viewport.Width / (tileWidth * _zoom)) + 1, maxViewRange);
             _viewRangeY = Math.Min((int)(Viewport.Height / (tileHeight * _zoom)) + 1, maxViewRange);
         }
@@ -117,12 +119,30 @@ namespace IsometricMapViewer.Handlers
                               Matrix.CreateTranslation(Viewport.Width / 2, Viewport.Height / 2, 0);
         }
 
+        private void CalculateMinZoom()
+        {
+            // Map dimensions in pixels
+            float mapPixelWidth = _map.Width * Constants.TileWidth;
+            float mapPixelHeight = _map.Height * Constants.TileHeight;
+
+            // Viewport dimensions
+            float viewportWidth = Viewport.Width;
+            float viewportHeight = Viewport.Height;
+
+            // Calculate zoom levels for width and height
+            float zoomWidth = viewportWidth / mapPixelWidth;
+            float zoomHeight = viewportHeight / mapPixelHeight;
+
+            // Use the larger value to ensure the map fills the viewport
+            _minZoom = Math.Max(zoomWidth, zoomHeight);
+        }
+
         private void ClampPosition()
         {
-            float scaledMapWidth = _map.Width * Constants.TileWidth * _zoom; 
-            float scaledMapHeight = _map.Height * Constants.TileHeight * _zoom; 
-            float mapWidth = _map.Width * Constants.TileWidth; 
-            float mapHeight = _map.Height * Constants.TileHeight; 
+            float scaledMapWidth = _map.Width * Constants.TileWidth * _zoom;
+            float scaledMapHeight = _map.Height * Constants.TileHeight * _zoom;
+            float mapWidth = _map.Width * Constants.TileWidth;
+            float mapHeight = _map.Height * Constants.TileHeight;
 
             // Handle X-axis
             if (scaledMapWidth < Viewport.Width)

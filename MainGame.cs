@@ -60,7 +60,7 @@ namespace IsometricMapViewer
             _camera = new CameraHandler(GraphicsDevice, _map);
             Vector2 startPos = new(Map.Width * Constants.TileWidth / 2,
                                  Map.Height * Constants.TileHeight / 2);
-            _camera.FitToMap();
+            //_camera.FitToMap();
             _inputHandler = new InputHandler(_camera, GraphicsDevice, this);
 
             base.Initialize();
