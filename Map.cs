@@ -360,6 +360,39 @@ namespace IsometricMapViewer
         }
     }
 
+    public struct TileProperties
+    {
+        public bool IsMoveAllowed;
+        public bool IsTeleport;
+        public bool IsFarmingAllowed;
+        public bool IsWater;
+
+        public TileProperties(bool isMoveAllowed, bool isTeleport, bool isFarmingAllowed, bool isWater)
+        {
+            IsMoveAllowed = isMoveAllowed;
+            IsTeleport = isTeleport;
+            IsFarmingAllowed = isFarmingAllowed;
+            IsWater = isWater;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is TileProperties other)
+            {
+                return IsMoveAllowed == other.IsMoveAllowed &&
+                       IsTeleport == other.IsTeleport &&
+                       IsFarmingAllowed == other.IsFarmingAllowed &&
+                       IsWater == other.IsWater;
+            }
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(IsMoveAllowed, IsTeleport, IsFarmingAllowed, IsWater);
+        }
+    }
+
     public class Tile(Texture2D texture)
     {
         public Texture2D Texture { get; } = texture ?? throw new ArgumentNullException(nameof(texture), "Tile texture cannot be null");
