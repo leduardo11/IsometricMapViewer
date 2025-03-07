@@ -192,7 +192,7 @@ namespace IsometricMapViewer
                     new XElement("map",
                         new XAttribute("version", "1.9"),
                         new XAttribute("tiledversion", "1.9.2"),
-                        new XAttribute("orientation", "isometric"), 
+                        new XAttribute("orientation", "orthogonal"),
                         new XAttribute("width", _map.Width),
                         new XAttribute("height", _map.Height),
                         new XAttribute("tilewidth", Constants.TileWidth),

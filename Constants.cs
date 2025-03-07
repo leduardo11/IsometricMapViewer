@@ -3,7 +3,7 @@ namespace IsometricMapViewer
     public static class Constants
     {
         public const string OutputPath = "/home/leduardo";
-        public const string MapName = "2ndmiddle";
+        public const string MapName = "aresden";
         public const int TileWidth = 32;
         public const int TileHeight = 32;
         public const int ExpectedTileSize = 10;
