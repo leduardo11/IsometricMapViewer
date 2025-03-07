@@ -98,6 +98,11 @@ namespace IsometricMapViewer
             _renderer.ShowGrid = !_renderer.ShowGrid;
         }
 
+        public void ToggleObjects()
+        {
+            _renderer.ShowObjects = !_renderer.ShowObjects;
+        }
+
         private static string GetFirstMapFilePath()
         {
             string mapPath = Path.Combine(MapsFolder, Constants.MapName + ".amd");

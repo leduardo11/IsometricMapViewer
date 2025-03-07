@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -16,6 +18,13 @@ namespace IsometricMapViewer.Handlers
         private bool _isDragging;
         private string _gotoInput = "";
 
+        private readonly List<(Keys Key, Action Action)> _controlHotkeys =
+        [
+            (Keys.E, () => ((MainGame)game).ExportMap()),
+            (Keys.G, () => ((MainGame)game).ToggleGrid()),
+            (Keys.O, () => ((MainGame)game).ToggleObjects())
+        ];
+
         public void Update(GameTime gameTime)
         {
             var mouseState = Mouse.GetState();
@@ -27,11 +36,24 @@ namespace IsometricMapViewer.Handlers
             HandleKeyboardMovement(keyboardState);
             HandleApplicationClose(keyboardState);
             HandleGotoCommand(keyboardState);
-            HandleGridToggle(keyboardState);
-            HandleExportMap(keyboardState);
+            HandleCTRLHotkeys(keyboardState);
 
             _previousMouseState = mouseState;
             _previousKeyboardState = keyboardState;
+        }
+
+        private void HandleCTRLHotkeys(KeyboardState keyboardState)
+        {
+            if (keyboardState.IsKeyDown(Keys.LeftControl) || keyboardState.IsKeyDown(Keys.RightControl))
+            {
+                foreach (var (key, action) in _controlHotkeys)
+                {
+                    if (keyboardState.IsKeyDown(key) && !_previousKeyboardState.IsKeyDown(key))
+                    {
+                        action();
+                    }
+                }
+            }
         }
 
         private void HandleMouseDragging(MouseState mouseState)
@@ -114,7 +136,11 @@ namespace IsometricMapViewer.Handlers
 
         private void HandleGotoCommand(KeyboardState keyboardState)
         {
-            if (keyboardState.IsKeyDown(Keys.G) && string.IsNullOrEmpty(_gotoInput))
+            // Only start goto command if 'G' is pressed without CTRL
+            if (keyboardState.IsKeyDown(Keys.G) &&
+                !keyboardState.IsKeyDown(Keys.LeftControl) &&
+                !keyboardState.IsKeyDown(Keys.RightControl) &&
+                string.IsNullOrEmpty(_gotoInput))
             {
                 _gotoInput = "G";
             }
@@ -160,24 +186,6 @@ namespace IsometricMapViewer.Handlers
                     }
                     _gotoInput = "";
                 }
-            }
-        }
-
-        private void HandleGridToggle(KeyboardState keyboardState)
-        {
-            if ((keyboardState.IsKeyDown(Keys.LeftControl) || keyboardState.IsKeyDown(Keys.RightControl)) &&
-                keyboardState.IsKeyDown(Keys.G) && !_previousKeyboardState.IsKeyDown(Keys.G))
-            {
-                ((MainGame)_game).ToggleGrid();
-            }
-        }
-
-        private void HandleExportMap(KeyboardState keyboardState)
-        {
-            if ((keyboardState.IsKeyDown(Keys.LeftControl) || keyboardState.IsKeyDown(Keys.RightControl)) &&
-                keyboardState.IsKeyDown(Keys.E) && !_previousKeyboardState.IsKeyDown(Keys.E))
-            {
-                ((MainGame)_game).ExportMap();
             }
         }
 

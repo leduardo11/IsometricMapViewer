@@ -18,6 +18,7 @@ namespace IsometricMapViewer.Rendering
         private readonly Dictionary<int, Texture2D> _spriteTextures = [];
         private readonly Dictionary<string, SpriteFile> _spriteFiles = [];
         public bool ShowGrid { get; set; } = false;
+        public bool ShowObjects { get; set; } = true;
 
         public GameRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice, Map map)
         {
@@ -59,20 +60,20 @@ namespace IsometricMapViewer.Rendering
             Rectangle viewBounds = camera.GetViewBounds();
             var visibleTiles = _map.GetVisibleTiles(viewBounds);
 
-            // First pass: Draw base tiles
             foreach (var tile in visibleTiles)
             {
                 Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
                 DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false); // Tile sprite
             }
 
-            // Second pass: Draw objects on top
-            foreach (var tile in visibleTiles)
+            if (ShowObjects)
             {
-                Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
-                DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true); // Object sprite
+                foreach (var tile in visibleTiles)
+                {
+                    Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
+                    DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true); // Object sprite
+                }
             }
-
             _spriteBatch.End();
         }
 
@@ -161,14 +162,12 @@ namespace IsometricMapViewer.Rendering
         public void DrawDebugOverlay(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
         {
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-            string debugText = hoveredTile != null
-                ? $"Hovered Tile: ({hoveredTile.X}, {hoveredTile.Y})\n" +
-                  $"Tile Sprite: {hoveredTile.TileSprite} ({GetSpriteFileName(hoveredTile.TileSprite)})\n" +
-                  $"Object Sprite: {hoveredTile.ObjectSprite} ({GetSpriteFileName(hoveredTile.ObjectSprite)})\n" +
-                  $"Move: {hoveredTile.IsMoveAllowed}, Teleport: {hoveredTile.IsTeleport}\n" +
-                  $"Farm: {hoveredTile.IsFarmingAllowed}, Water: {hoveredTile.IsWater}\n"
-                : "No tile hovered\n";
-            debugText += $"Zoom Level: {camera.Zoom:F2}\nGrid: {(ShowGrid ? "On" : "Off")}";
+            string debugText = hoveredTile != null ? $"Hovered Tile: ({hoveredTile.X}, {hoveredTile.Y})\n" +
+                                                     $"Tile Sprite: {hoveredTile.TileSprite} ({GetSpriteFileName(hoveredTile.TileSprite)})\n" +
+                                                     $"Object Sprite: {hoveredTile.ObjectSprite} ({GetSpriteFileName(hoveredTile.ObjectSprite)})\n" +
+                                                     $"Move: {hoveredTile.IsMoveAllowed}, Teleport: {hoveredTile.IsTeleport}\n" +
+                                                     $"Farm: {hoveredTile.IsFarmingAllowed}, Water: {hoveredTile.IsWater}\n" : "No tile hovered\n";
+            debugText += $"Zoom Level: {camera.Zoom:F2}\nGrid: {(ShowGrid ? "On" : "Off")}\nObjects: {(ShowObjects ? "On" : "Off")}";
             _spriteBatch.DrawString(_font, debugText, new Vector2(10, 10), Color.White);
             _spriteBatch.End();
         }
