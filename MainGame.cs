@@ -139,7 +139,7 @@ namespace IsometricMapViewer
 
         public void ExportMapToTsx()
         {
-            _exporter.ExportToTsx();
+            _exporter.ExportToTiledMap();
         }
 
         protected override void Dispose(bool disposing)
