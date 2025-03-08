@@ -85,7 +85,7 @@ namespace IsometricMapViewer
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.Transparent);
             _renderer.DrawMap(_camera);
             _renderer.DrawGrid(_camera);
             _renderer.DrawTileHighlight(_camera, _hoveredTile);
@@ -134,7 +134,7 @@ namespace IsometricMapViewer
 
         public void ExportMap()
         {
-            _exporter.ExportToPng();
+            _exporter.ExportToTmx();
         }
 
         protected override void Dispose(bool disposing)
