@@ -172,11 +172,13 @@ namespace IsometricMapViewer
             writer.WriteAttributeString("tileheight", "32");
             writer.WriteAttributeString("infinite", "0");
 
+            // Main tileset
             writer.WriteStartElement("tileset");
             writer.WriteAttributeString("firstgid", "1");
             writer.WriteAttributeString("source", $"{Constants.MapName}.tsx");
             writer.WriteEndElement();
 
+            // Main tile layer
             writer.WriteStartElement("layer");
             writer.WriteAttributeString("id", "1");
             writer.WriteAttributeString("name", "Tile Layer 1");
@@ -198,52 +200,60 @@ namespace IsometricMapViewer
             writer.WriteEndElement(); // </data>
             writer.WriteEndElement(); // </layer>
 
+            // Debug layer (if grid is shown)
             if (_gameRenderer.ShowGrid)
             {
+                string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
+                string debugTexturePath = Path.Combine(mapFolder, "debug_outlines.png");
                 using Texture2D debugTexture = CreateDebugTexture();
-                string base64 = TextureToBase64(debugTexture);
+                SaveTextureToFile(debugTexture, debugTexturePath); // Save as a file
                 int debugFirstGid = _map.Width * _map.Height + 1;
 
+                // Debug tileset
                 writer.WriteStartElement("tileset");
                 writer.WriteAttributeString("firstgid", debugFirstGid.ToString());
-                writer.WriteAttributeString("name", "DebugOverlay");
+                writer.WriteAttributeString("name", "DebugOutlines");
                 writer.WriteAttributeString("tilewidth", "32");
                 writer.WriteAttributeString("tileheight", "32");
                 writer.WriteAttributeString("tilecount", "4");
-                writer.WriteAttributeString("columns", "4");
+                writer.WriteAttributeString("columns", "1");
                 writer.WriteStartElement("image");
-                writer.WriteAttributeString("source", "data:image/png;base64," + base64);
-                writer.WriteAttributeString("width", "128");
-                writer.WriteAttributeString("height", "32");
+                writer.WriteAttributeString("source", "debug_outlines.png"); // Reference the file
+                writer.WriteAttributeString("width", "32");
+                writer.WriteAttributeString("height", "128");
                 writer.WriteEndElement();
                 writer.WriteEndElement();
 
-                writer.WriteStartElement("objectgroup");
+                // Debug tile layer
+                writer.WriteStartElement("layer");
                 writer.WriteAttributeString("id", "2");
                 writer.WriteAttributeString("name", "DebugOverlay");
                 writer.WriteAttributeString("width", _map.Width.ToString());
                 writer.WriteAttributeString("height", _map.Height.ToString());
+                writer.WriteStartElement("data");
+                writer.WriteAttributeString("encoding", "csv");
 
-                int objectId = 1;
                 for (int y = 0; y < _map.Height; y++)
                 {
                     for (int x = 0; x < _map.Width; x++)
                     {
                         var tile = _map.Tiles[x, y];
-                        float posX = x * 32;
-                        float posY = y * 32;
-
-                        if (!tile.IsMoveAllowed)
-                            WriteObject(writer, objectId++, debugFirstGid, posX, posY);
+                        int gid = 0; // 0 means no tile
                         if (tile.IsTeleport)
-                            WriteObject(writer, objectId++, debugFirstGid + 1, posX, posY);
-                        if (tile.IsFarmingAllowed)
-                            WriteObject(writer, objectId++, debugFirstGid + 2, posX, posY);
-                        if (tile.IsWater)
-                            WriteObject(writer, objectId++, debugFirstGid + 3, posX, posY);
+                            gid = debugFirstGid + 1; // Blue outline
+                        else if (!tile.IsMoveAllowed)
+                            gid = debugFirstGid;     // Red outline
+                        else if (tile.IsFarmingAllowed)
+                            gid = debugFirstGid + 2; // Green outline
+                        else if (tile.IsWater)
+                            gid = debugFirstGid + 3; // Cyan outline
+                        writer.WriteString(gid.ToString());
+                        if (x < _map.Width - 1) writer.WriteString(",");
                     }
+                    if (y < _map.Height - 1) writer.WriteString(",\n");
                 }
-                writer.WriteEndElement(); // </objectgroup>
+                writer.WriteEndElement(); // </data>
+                writer.WriteEndElement(); // </layer>
             }
 
             writer.WriteEndElement(); // </map>
@@ -252,41 +262,25 @@ namespace IsometricMapViewer
 
         private Texture2D CreateDebugTexture()
         {
-            Texture2D texture = _gameRenderer.CreateTexture2D(128, 32);
-            Color[] data = new Color[128 * 32];
+            Texture2D texture = _gameRenderer.CreateTexture2D(32, 128); // Four 32x32 tiles, stacked vertically
+            Color[] data = new Color[32 * 128];
+            Color[] colors = [Color.Red, Color.Blue, Color.Green, Color.Cyan]; // Order: blocked, teleport, farming, water
 
-            for (int i = 0; i < 32; i++)
-                for (int j = 0; j < 32; j++)
-                    data[i + j * 128] = new Color(255, 0, 0, 128); // Red
-            for (int i = 32; i < 64; i++)
-                for (int j = 0; j < 32; j++)
-                    data[i + j * 128] = new Color(0, 0, 255, 128); // Blue
-            for (int i = 64; i < 96; i++)
-                for (int j = 0; j < 32; j++)
-                    data[i + j * 128] = new Color(0, 255, 0, 128); // Green
-            for (int i = 96; i < 128; i++)
-                for (int j = 0; j < 32; j++)
-                    data[i + j * 128] = new Color(0, 255, 255, 128); // Cyan
-
+            for (int tile = 0; tile < 4; tile++)
+            {
+                Color color = colors[tile];
+                int offsetY = tile * 32;
+                // Top border
+                for (int x = 0; x < 32; x++) data[x + offsetY * 32] = color;
+                // Bottom border
+                for (int x = 0; x < 32; x++) data[x + (offsetY + 31) * 32] = color;
+                // Left border
+                for (int y = 0; y < 32; y++) data[offsetY + y * 32] = color;
+                // Right border
+                for (int y = 0; y < 32; y++) data[31 + (offsetY + y) * 32] = color;
+            }
             texture.SetData(data);
             return texture;
-        }
-
-        private static string TextureToBase64(Texture2D texture)
-        {
-            using MemoryStream ms = new();
-            texture.SaveAsPng(ms, texture.Width, texture.Height);
-            return Convert.ToBase64String(ms.ToArray());
-        }
-
-        private static void WriteObject(XmlWriter writer, int id, int gid, float x, float y)
-        {
-            writer.WriteStartElement("object");
-            writer.WriteAttributeString("id", id.ToString());
-            writer.WriteAttributeString("gid", gid.ToString());
-            writer.WriteAttributeString("x", x.ToString());
-            writer.WriteAttributeString("y", y.ToString());
-            writer.WriteEndElement();
         }
 
         public void Dispose()
