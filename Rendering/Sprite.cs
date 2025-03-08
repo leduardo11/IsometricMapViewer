@@ -11,7 +11,6 @@ namespace IsometricMapViewer.Rendering
     {
         private readonly GraphicsDevice _graphicsDevice = graphicsDevice;
         private readonly List<Sprite> _sprites = [];
-        private readonly TextureLoader _textureLoader = new(graphicsDevice);
 
         public void Load(string filePath, int startIndex = 0)
         {
@@ -66,7 +65,7 @@ namespace IsometricMapViewer.Rendering
                 try
                 {
                     using MemoryStream stream = new(_sprites[i].ImageData);
-                    _sprites[i].Texture = _textureLoader.FromStream(stream, true);
+                    _sprites[i].Texture = Texture2D.FromStream(_graphicsDevice, stream);
                 }
                 catch (Exception ex)
                 {

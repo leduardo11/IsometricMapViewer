@@ -19,6 +19,25 @@ namespace IsometricMapViewer.Rendering
         public bool ShowGrid { get; set; } = false;
         public bool ShowObjects { get; set; } = true;
 
+        // Blend states for pre-multiplication
+        private static readonly BlendState BlendColorBlendState = new()
+        {
+            ColorDestinationBlend = Blend.Zero,
+            ColorWriteChannels = ColorWriteChannels.Red | ColorWriteChannels.Green | ColorWriteChannels.Blue,
+            AlphaDestinationBlend = Blend.Zero,
+            AlphaSourceBlend = Blend.SourceAlpha,
+            ColorSourceBlend = Blend.SourceAlpha
+        };
+
+        private static readonly BlendState BlendAlphaBlendState = new()
+        {
+            ColorWriteChannels = ColorWriteChannels.Alpha,
+            AlphaDestinationBlend = Blend.Zero,
+            ColorDestinationBlend = Blend.Zero,
+            AlphaSourceBlend = Blend.One,
+            ColorSourceBlend = Blend.One
+        };
+
         public GameRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice, Map map)
         {
             _spriteBatch = spriteBatch;
@@ -42,6 +61,7 @@ namespace IsometricMapViewer.Rendering
 
                     foreach (var sprite in spriteFile.Sprites)
                     {
+                        PreMultiplyAlpha(sprite.Texture);
                         _spriteTextures[sprite.Index] = sprite.Texture;
                     }
                 }
@@ -51,6 +71,56 @@ namespace IsometricMapViewer.Rendering
                     spriteFile.Dispose();
                 }
             }
+        }
+
+        public void PreMultiplyAlpha(Texture2D texture)
+        {
+            using RenderTarget2D renderTarget = new(
+                _spriteBatch.GraphicsDevice,
+                texture.Width,
+                texture.Height,
+                false,
+                SurfaceFormat.Color,
+                DepthFormat.None);
+
+            Viewport viewportBackup = _spriteBatch.GraphicsDevice.Viewport;
+
+            try
+            {
+                _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
+                _spriteBatch.GraphicsDevice.Clear(Color.Black);
+                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendColorBlendState);
+                _spriteBatch.Draw(texture, texture.Bounds, Color.White);
+                _spriteBatch.End();
+                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendAlphaBlendState);
+                _spriteBatch.Draw(texture, texture.Bounds, Color.White);
+                _spriteBatch.End();
+                Color[] data = new Color[texture.Width * texture.Height];
+                renderTarget.GetData(data);
+                _spriteBatch.GraphicsDevice.SetRenderTarget(null);
+                _spriteBatch.GraphicsDevice.Textures[0] = null;
+                texture.SetData(data);
+            }
+            finally
+            {
+                _spriteBatch.GraphicsDevice.Viewport = viewportBackup;
+            }
+        }
+
+        public Texture2D LoadTextureFromStream(Stream stream, bool preMultiplyAlpha = true)
+        {
+            Texture2D texture = LoadTextureFromStreamInternal(stream);
+
+            if (preMultiplyAlpha)
+            {
+                PreMultiplyAlpha(texture);
+            }
+            return texture;
+        }
+
+        private Texture2D LoadTextureFromStreamInternal(Stream stream)
+        {
+            return Texture2D.FromStream(_spriteBatch.GraphicsDevice, stream);
         }
 
         public void DrawMap(CameraHandler camera)
@@ -206,7 +276,6 @@ namespace IsometricMapViewer.Rendering
             int imageWidth = columns * tileWidth;
             int imageHeight = rows * tileHeight;
 
-            // Use _spriteBatch.GraphicsDevice instead of _graphicsDevice
             RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, imageWidth, imageHeight);
 
             _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
