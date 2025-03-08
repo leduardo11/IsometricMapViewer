@@ -160,7 +160,7 @@ namespace IsometricMapViewer.Rendering
         public void DrawDebugOverlay(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
         {
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-            string debugText = hoveredTile != null ? $"Hovered Tile: ({hoveredTile.X}, {hoveredTile.Y})\n" +
+            string debugText = hoveredTile != null ? $"Hovered Tile: (X: {hoveredTile.X}, Y: {hoveredTile.Y})\n" +
                                                      $"Tile Sprite: {hoveredTile.TileSprite} ({GetSpriteFileName(hoveredTile.TileSprite)})\n" +
                                                      $"Object Sprite: {hoveredTile.ObjectSprite} ({GetSpriteFileName(hoveredTile.ObjectSprite)})\n" +
                                                      $"Move: {hoveredTile.IsMoveAllowed}, Teleport: {hoveredTile.IsTeleport}\n" +
