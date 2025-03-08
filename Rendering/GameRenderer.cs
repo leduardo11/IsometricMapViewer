@@ -231,8 +231,10 @@ namespace IsometricMapViewer.Rendering
             RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
             _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
             _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
-            _spriteBatch.Begin(SpriteSortMode.Texture, BlendState.NonPremultiplied, SamplerState.PointClamp);
 
+            _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.PremultipliedBlendState, SamplerState.PointClamp);
+
+            // Draw tiles and optionally objects
             for (int y = 0; y < _map.Height; y++)
             {
                 for (int x = 0; x < _map.Width; x++)
@@ -240,7 +242,11 @@ namespace IsometricMapViewer.Rendering
                     var tile = _map.Tiles[x, y];
                     Vector2 pos = new(x * Constants.TileWidth, y * Constants.TileHeight);
                     DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false);
-                    DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
+
+                    if (ShowObjects)
+                    {
+                        DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
+                    }
                 }
             }
             _spriteBatch.End();

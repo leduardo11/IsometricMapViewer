@@ -51,6 +51,14 @@ namespace IsometricMapViewer
             ColorSourceBlend = Blend.One
         };
 
+        public static readonly BlendState PremultipliedBlendState = new()
+        {
+            ColorSourceBlend = Blend.One,
+            AlphaSourceBlend = Blend.One,
+            ColorDestinationBlend = Blend.InverseSourceAlpha,
+            AlphaDestinationBlend = Blend.InverseSourceAlpha
+        };
+
         public static readonly (string fileName, int startIndex, int count)[] SpritesToLoad =
         [
          ("maptiles1.spr", 0, 32),
