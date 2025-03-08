@@ -132,9 +132,14 @@ namespace IsometricMapViewer
             return map;
         }
 
-        public void ExportMap()
+        public void ExportMapToPng()
         {
             _exporter.ExportToPng();
+        }
+
+        public void ExportMapToTsx()
+        {
+            _exporter.ExportToTsx();
         }
 
         protected override void Dispose(bool disposing)

@@ -20,7 +20,8 @@ namespace IsometricMapViewer.Handlers
 
         private readonly List<(Keys Key, Action Action)> _controlHotkeys =
         [
-            (Keys.E, () => ((MainGame)game).ExportMap()),
+            (Keys.P, () => ((MainGame)game).ExportMapToPng()),
+            (Keys.T, () => ((MainGame)game).ExportMapToTsx()),
             (Keys.G, () => ((MainGame)game).ToggleGrid()),
             (Keys.O, () => ((MainGame)game).ToggleObjects())
         ];
