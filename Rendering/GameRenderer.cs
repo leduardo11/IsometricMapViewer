@@ -19,25 +19,6 @@ namespace IsometricMapViewer.Rendering
         public bool ShowGrid { get; set; } = false;
         public bool ShowObjects { get; set; } = true;
 
-        // Blend states for pre-multiplication
-        private static readonly BlendState BlendColorBlendState = new()
-        {
-            ColorDestinationBlend = Blend.Zero,
-            ColorWriteChannels = ColorWriteChannels.Red | ColorWriteChannels.Green | ColorWriteChannels.Blue,
-            AlphaDestinationBlend = Blend.Zero,
-            AlphaSourceBlend = Blend.SourceAlpha,
-            ColorSourceBlend = Blend.SourceAlpha
-        };
-
-        private static readonly BlendState BlendAlphaBlendState = new()
-        {
-            ColorWriteChannels = ColorWriteChannels.Alpha,
-            AlphaDestinationBlend = Blend.Zero,
-            ColorDestinationBlend = Blend.Zero,
-            AlphaSourceBlend = Blend.One,
-            ColorSourceBlend = Blend.One
-        };
-
         public GameRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice, Map map)
         {
             _spriteBatch = spriteBatch;
@@ -89,10 +70,10 @@ namespace IsometricMapViewer.Rendering
             {
                 _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
                 _spriteBatch.GraphicsDevice.Clear(Color.Black);
-                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendColorBlendState);
+                _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.BlendColorBlendState);
                 _spriteBatch.Draw(texture, texture.Bounds, Color.White);
                 _spriteBatch.End();
-                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendAlphaBlendState);
+                _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.BlendAlphaBlendState);
                 _spriteBatch.Draw(texture, texture.Bounds, Color.White);
                 _spriteBatch.End();
                 Color[] data = new Color[texture.Width * texture.Height];

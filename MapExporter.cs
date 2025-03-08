@@ -18,32 +18,49 @@ namespace IsometricMapViewer
 
         public void ExportToPng()
         {
-            if (_isExporting)
+            lock (_exportLock)
             {
-                ConsoleLogger.LogWarning("Export already in progress.");
-                return;
+                if (_isExporting)
+                {
+                    ConsoleLogger.LogWarning("Export already in progress.");
+                    return;
+                }
+                _isExporting = true;
             }
 
-            ConsoleLogger.LogInfo("Starting map export...");
-            Texture2D exportedTexture = _gameRenderer.RenderFullMapToTexture();
-            SaveTextureToFile(exportedTexture);
-            exportedTexture.Dispose();
-            _isExporting = false;
+            try
+            {
+                ConsoleLogger.LogInfo("Starting map export to PNG...");
+                string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
+                Directory.CreateDirectory(mapFolder);
+                string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}.png");
+                Texture2D exportedTexture = _gameRenderer.RenderFullMapToTexture();
+                SaveTextureToFile(exportedTexture, exportPath);
+                exportedTexture.Dispose();
+            }
+            finally
+            {
+                lock (_exportLock) { _isExporting = false; }
+            }
         }
 
         public void ExportToTmx()
         {
             ConsoleLogger.LogInfo("Starting map export to .tmx...");
-            string outputPath = Path.Combine(Constants.OutputPath, $"{Constants.MapName}.tmx");
-
-            // Ensure tilesets exist
-            if (!File.Exists(Path.Combine(Constants.OutputPath, "BaseTileset.tsx"))) ExportBaseTileset();
-            if (!File.Exists(Path.Combine(Constants.OutputPath, "ObjectTileset.tsx"))) ExportObjectTileset();
-            if (!File.Exists(Path.Combine(Constants.OutputPath, "PropertiesTileset.tsx"))) ExportPropertiesTileset();
+            string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
+            Directory.CreateDirectory(mapFolder);
+            string outputPath = Path.Combine(mapFolder, $"{Constants.MapName}.tmx");
+            if (!File.Exists(Path.Combine(mapFolder, "BaseTileset.tsx"))) ExportBaseTileset(mapFolder);
+            if (!File.Exists(Path.Combine(mapFolder, "ObjectTileset.tsx"))) ExportObjectTileset(mapFolder);
+            if (!File.Exists(Path.Combine(mapFolder, "PropertiesTileset.tsx"))) ExportPropertiesTileset(mapFolder);
 
             lock (_exportLock)
             {
-                if (_isExporting) { ConsoleLogger.LogWarning("Export already in progress."); return; }
+                if (_isExporting)
+                {
+                    ConsoleLogger.LogWarning("Export already in progress.");
+                    return;
+                }
                 _isExporting = true;
             }
 
@@ -59,7 +76,6 @@ namespace IsometricMapViewer
                         _map.Tiles[x, y].ObjectSprite == -1 ? "0" : (_map.Tiles[x, y].ObjectSprite + 1).ToString())));
 
                 var propertiesData = new List<string>();
-                
                 for (int y = 0; y < _map.Height; y++)
                 {
                     for (int x = 0; x < _map.Width; x++)
@@ -70,10 +86,10 @@ namespace IsometricMapViewer
                 }
                 string propertiesCsv = string.Join(",", propertiesData);
 
-                // Create the map structure using helper methods
+                // Create the map structure
                 XElement mapElement = CreateMapElement(_map.Width, _map.Height, Constants.TileWidth, Constants.TileHeight);
 
-                // Add tileset references
+                // Add tileset references (relative paths within the same folder)
                 mapElement.Add(CreateTilesetReference(1, "BaseTileset.tsx"));
                 mapElement.Add(CreateTilesetReference(1000, "ObjectTileset.tsx"));
                 mapElement.Add(CreateTilesetReference(2000, "PropertiesTileset.tsx"));
@@ -86,7 +102,6 @@ namespace IsometricMapViewer
 
                 // Add per-tile properties
                 var tileElements = new List<XElement>();
-
                 for (int y = 0; y < _map.Height; y++)
                 {
                     for (int x = 0; x < _map.Width; x++)
@@ -105,7 +120,7 @@ namespace IsometricMapViewer
                     propertiesLayer.Add(new XElement("tiles", tileElements));
                 }
 
-                // Save the document
+                // Save the TMX file
                 XDocument tmxDoc = new(mapElement);
                 tmxDoc.Save(outputPath);
                 ConsoleLogger.LogInfo($"Map exported to {outputPath}");
@@ -116,7 +131,7 @@ namespace IsometricMapViewer
             }
         }
 
-        private void ExportBaseTileset()
+        private void ExportBaseTileset(string mapFolder)
         {
             var uniqueBaseSprites = _map.Tiles.Cast<MapTile>()
                 .Where(t => t.TileSprite != -1)
@@ -125,10 +140,10 @@ namespace IsometricMapViewer
                 .OrderBy(t => t.SpriteID)
                 .ThenBy(t => t.FrameIndex)
                 .ToList();
-            ExportTileset("BaseTileset", uniqueBaseSprites, "BaseTileset.png");
+            ExportTileset(mapFolder, "BaseTileset", uniqueBaseSprites, "BaseTileset.png");
         }
 
-        private void ExportObjectTileset()
+        private void ExportObjectTileset(string mapFolder)
         {
             var uniqueObjectSprites = _map.Tiles.Cast<MapTile>()
                 .Where(t => t.ObjectSprite != -1)
@@ -137,12 +152,12 @@ namespace IsometricMapViewer
                 .OrderBy(t => t.SpriteID)
                 .ThenBy(t => t.FrameIndex)
                 .ToList();
-            ExportTileset("ObjectTileset", uniqueObjectSprites, "ObjectTileset.png");
+            ExportTileset(mapFolder, "ObjectTileset", uniqueObjectSprites, "ObjectTileset.png");
         }
 
-        private void ExportPropertiesTileset()
+        private void ExportPropertiesTileset(string mapFolder)
         {
-            string outputPath = Path.Combine(Constants.OutputPath, "PropertiesTileset.tsx");
+            string outputPath = Path.Combine(mapFolder, "PropertiesTileset.tsx");
             int tileCount = 2; // Empty + Property Tile
             int columns = 2;
             int imageWidth = Constants.TileWidth * columns;
@@ -162,7 +177,7 @@ namespace IsometricMapViewer
 
             tilesetTexture.SetData(data);
             string imageFileName = "PropertiesTileset.png";
-            string imagePath = Path.Combine(Constants.OutputPath, imageFileName);
+            string imagePath = Path.Combine(mapFolder, imageFileName);
             using (FileStream stream = new(imagePath, FileMode.Create))
             {
                 tilesetTexture.SaveAsPng(stream, tilesetTexture.Width, tilesetTexture.Height);
@@ -183,17 +198,16 @@ namespace IsometricMapViewer
             tilesetTexture.Dispose();
         }
 
-        private static void SaveTextureToFile(Texture2D texture)
+        private static void SaveTextureToFile(Texture2D texture, string filePath)
         {
-            string exportPath = Path.Combine(Constants.OutputPath, $"{Constants.MapName}.png");
-            using FileStream stream = new(exportPath, FileMode.Create);
+            using FileStream stream = new(filePath, FileMode.Create);
             texture.SaveAsPng(stream, texture.Width, texture.Height);
-            ConsoleLogger.LogInfo($"Map PNG created at: {exportPath}");
+            ConsoleLogger.LogInfo($"Map PNG created at: {filePath}");
         }
 
-        private void ExportTileset(string tilesetName, List<(int SpriteID, int FrameIndex)> uniqueSprites, string imageFileName)
+        private void ExportTileset(string mapFolder, string tilesetName, List<(int SpriteID, int FrameIndex)> uniqueSprites, string imageFileName)
         {
-            string outputPath = Path.Combine(Constants.OutputPath, $"{tilesetName}.tsx");
+            string outputPath = Path.Combine(mapFolder, $"{tilesetName}.tsx");
             int tileCount = uniqueSprites.Count;
 
             if (tileCount == 0)
@@ -204,7 +218,7 @@ namespace IsometricMapViewer
 
             int columns = Constants.ExpectedTileSize;
             Texture2D tilesetTexture = _gameRenderer.CreateTilesetTexture(uniqueSprites, columns);
-            string imagePath = Path.Combine(Constants.OutputPath, imageFileName);
+            string imagePath = Path.Combine(mapFolder, imageFileName);
 
             using (FileStream stream = new(imagePath, FileMode.Create))
             {
