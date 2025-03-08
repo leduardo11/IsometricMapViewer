@@ -10,7 +10,6 @@ namespace IsometricMapViewer.Rendering
 {
     public class GameRenderer : IDisposable
     {
-        private readonly GraphicsDevice _graphicsDevice;
         private readonly SpriteBatch _spriteBatch;
         private readonly SpriteFont _font;
         private readonly Map _map;
@@ -121,13 +120,17 @@ namespace IsometricMapViewer.Rendering
         {
             Rectangle viewBounds = camera.GetViewBounds();
             var visibleTiles = _map.GetVisibleTiles(viewBounds);
+
             foreach (var tile in visibleTiles)
             {
                 Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
+
                 if (tile.IsTeleport)
                     DrawTileOutline(pos, Color.Blue);
                 if (!tile.IsMoveAllowed)
                     DrawTileOutline(pos, Color.Red);
+                if (tile.IsFarmingAllowed)
+                    DrawTileOutline(pos, Color.Green);
             }
         }
 
