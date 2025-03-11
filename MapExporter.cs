@@ -38,7 +38,6 @@ namespace IsometricMapViewer
         {
             return WithExportLock(() =>
             {
-                string pngPath = ExportPngInternal();
                 string tsxPath = ExportTsxInternal();
                 string tmxPath = ExportTmxInternal();
                 return tsxPath;
@@ -102,7 +101,7 @@ namespace IsometricMapViewer
 
         private void CreateTsxFile(string filePath)
         {
-            XmlWriterSettings settings = new XmlWriterSettings { Indent = true };
+            XmlWriterSettings settings = new() { Indent = true };
             using XmlWriter writer = XmlWriter.Create(filePath, settings);
 
             writer.WriteStartDocument();
@@ -114,7 +113,6 @@ namespace IsometricMapViewer
             writer.WriteAttributeString("tileheight", "32");
             writer.WriteAttributeString("tilecount", (_map.Width * _map.Height).ToString());
             writer.WriteAttributeString("columns", _map.Width.ToString());
-
             writer.WriteStartElement("image");
             writer.WriteAttributeString("source", $"{Constants.MapName}.png");
             writer.WriteAttributeString("width", (_map.Width * Constants.TileWidth).ToString());
@@ -150,7 +148,6 @@ namespace IsometricMapViewer
                     writer.WriteEndElement(); // </tile>
                 }
             }
-
             writer.WriteEndElement(); // </tileset>
             writer.WriteEndDocument();
         }
@@ -174,7 +171,6 @@ namespace IsometricMapViewer
         {
             XmlWriterSettings settings = new() { Indent = true };
             using XmlWriter writer = XmlWriter.Create(filePath, settings);
-
             writer.WriteStartDocument();
             writer.WriteStartElement("map");
             writer.WriteAttributeString("version", "1.10");
@@ -187,16 +183,16 @@ namespace IsometricMapViewer
             writer.WriteAttributeString("tileheight", "32");
             writer.WriteAttributeString("infinite", "0");
 
-            // Main tileset
+            // Tileset reference
             writer.WriteStartElement("tileset");
             writer.WriteAttributeString("firstgid", "1");
             writer.WriteAttributeString("source", $"{Constants.MapName}.tsx");
             writer.WriteEndElement();
 
-            // Main tile layer
+            // Tile layer (visual layout with properties via tile IDs)
             writer.WriteStartElement("layer");
             writer.WriteAttributeString("id", "1");
-            writer.WriteAttributeString("name", "Tile Layer 1");
+            writer.WriteAttributeString("name", "TileLayer1");
             writer.WriteAttributeString("width", _map.Width.ToString());
             writer.WriteAttributeString("height", _map.Height.ToString());
             writer.WriteStartElement("data");
@@ -212,19 +208,18 @@ namespace IsometricMapViewer
                 }
                 if (y < _map.Height - 1) writer.WriteString(",\n");
             }
+
             writer.WriteEndElement(); // </data>
             writer.WriteEndElement(); // </layer>
 
-            // Debug layer (if grid is shown)
+            // Optional debug overlay (unchanged)
             if (_gameRenderer.ShowGrid)
             {
                 string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
                 string debugTexturePath = Path.Combine(mapFolder, "debug_outlines.png");
                 using Texture2D debugTexture = CreateDebugTexture();
-                SaveTextureToFile(debugTexture, debugTexturePath); // Save as a file
+                SaveTextureToFile(debugTexture, debugTexturePath);
                 int debugFirstGid = _map.Width * _map.Height + 1;
-
-                // Debug tileset
                 writer.WriteStartElement("tileset");
                 writer.WriteAttributeString("firstgid", debugFirstGid.ToString());
                 writer.WriteAttributeString("name", "DebugOutlines");
@@ -233,15 +228,13 @@ namespace IsometricMapViewer
                 writer.WriteAttributeString("tilecount", "4");
                 writer.WriteAttributeString("columns", "1");
                 writer.WriteStartElement("image");
-                writer.WriteAttributeString("source", "debug_outlines.png"); // Reference the file
+                writer.WriteAttributeString("source", "debug_outlines.png");
                 writer.WriteAttributeString("width", "32");
                 writer.WriteAttributeString("height", "128");
                 writer.WriteEndElement();
                 writer.WriteEndElement();
-
-                // Debug tile layer
                 writer.WriteStartElement("layer");
-                writer.WriteAttributeString("id", "2");
+                writer.WriteAttributeString("id", "2"); // Adjusted ID since object layer is removed
                 writer.WriteAttributeString("name", "DebugOverlay");
                 writer.WriteAttributeString("width", _map.Width.ToString());
                 writer.WriteAttributeString("height", _map.Height.ToString());
@@ -254,14 +247,10 @@ namespace IsometricMapViewer
                     {
                         var tile = _map.Tiles[x, y];
                         int gid = 0; // 0 means no tile
-                        if (tile.IsTeleport)
-                            gid = debugFirstGid + 1; // Blue outline
-                        else if (!tile.IsMoveAllowed)
-                            gid = debugFirstGid;     // Red outline
-                        else if (tile.IsFarmingAllowed)
-                            gid = debugFirstGid + 2; // Green outline
-                        else if (tile.IsWater)
-                            gid = debugFirstGid + 3; // Cyan outline
+                        if (tile.IsTeleport) gid = debugFirstGid + 1; // Blue outline
+                        else if (!tile.IsMoveAllowed) gid = debugFirstGid; // Red outline
+                        else if (tile.IsFarmingAllowed) gid = debugFirstGid + 2; // Green outline
+                        else if (tile.IsWater) gid = debugFirstGid + 3; // Cyan outline
                         writer.WriteString(gid.ToString());
                         if (x < _map.Width - 1) writer.WriteString(",");
                     }
