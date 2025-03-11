@@ -23,7 +23,8 @@ namespace IsometricMapViewer.Handlers
             (Keys.P, () => ((MainGame)game).ExportMapToPng()),
             (Keys.T, () => ((MainGame)game).ExportMapToTsx()),
             (Keys.G, () => ((MainGame)game).ToggleGrid()),
-            (Keys.O, () => ((MainGame)game).ToggleObjects())
+            (Keys.O, () => ((MainGame)game).ToggleObjects()),
+            (Keys.U, () => ((MainGame)game).ExportObjectsToPng())
         ];
 
         public void Update(GameTime gameTime)

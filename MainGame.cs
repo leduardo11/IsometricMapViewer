@@ -135,6 +135,11 @@ namespace IsometricMapViewer
             _exporter.ExportToPng();
         }
 
+        public void ExportObjectsToPng()
+        {
+            _exporter.ExportObjectsToPng();
+        }
+
         public void ExportMapToTsx()
         {
             _exporter.ExportToTiledMap();

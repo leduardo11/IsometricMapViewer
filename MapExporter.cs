@@ -19,6 +19,21 @@ namespace IsometricMapViewer
             return WithExportLock(ExportPngInternal);
         }
 
+        public string ExportObjectsToPng()
+        {
+            return WithExportLock(() =>
+            {
+                ConsoleLogger.LogInfo("Starting objects export to PNG...");
+                string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
+                Directory.CreateDirectory(mapFolder);
+                string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}_objects.png");
+                using Texture2D exportedTexture = _gameRenderer.RenderObjectsToTexture();
+                SaveTextureToFile(exportedTexture, exportPath);
+                ConsoleLogger.LogInfo($"Objects PNG created at: {exportPath}");
+                return exportPath;
+            });
+        }
+
         public string ExportToTiledMap()
         {
             return WithExportLock(() =>
