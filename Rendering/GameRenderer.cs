@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using IsometricMapViewer.Handlers;
+using IsometricMapViewer.Loaders;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -14,206 +12,45 @@ namespace IsometricMapViewer.Rendering
         private readonly SpriteFont _font;
         private readonly Map _map;
         private readonly Texture2D _highlightTexture;
-        private readonly Dictionary<int, Texture2D> _spriteTextures = [];
-        private readonly Dictionary<string, SpriteFile> _spriteFiles = [];
+        private readonly GridRenderer _gridRenderer;
+        private readonly SpriteLoader _spriteLoader;
 
         public bool ShowGrid { get; set; } = false;
         public bool ShowHotkeys { get; set; } = false;
         public bool ShowObjects { get; set; } = true;
 
-        public GameRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice, Map map)
+        public GameRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice, Map map, SpriteLoader spriteLoader)
         {
             _spriteBatch = spriteBatch;
             _font = font;
             _map = map;
             _highlightTexture = new Texture2D(graphicsDevice, 1, 1);
             _highlightTexture.SetData(new[] { Color.White });
-        }
-
-        public void LoadSprites()
-        {
-            foreach (var (fileName, startIndex, count) in Constants.SpritesToLoad)
-            {
-                string filePath = Path.Combine("Sprites", fileName);
-                var spriteFile = new SpriteFile(_spriteBatch.GraphicsDevice);
-
-                try
-                {
-                    spriteFile.Load(filePath, startIndex);
-                    _spriteFiles[fileName] = spriteFile;
-
-                    foreach (var sprite in spriteFile.Sprites)
-                    {
-                        PreMultiplyAlpha(sprite.Texture);
-                        _spriteTextures[sprite.Index] = sprite.Texture;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ConsoleLogger.LogError($"Failed to load {filePath}: {ex.Message}");
-                    spriteFile.Dispose();
-                }
-            }
-        }
-
-        public void PreMultiplyAlpha(Texture2D texture)
-        {
-            using RenderTarget2D renderTarget = new(
-                _spriteBatch.GraphicsDevice,
-                texture.Width,
-                texture.Height,
-                false,
-                SurfaceFormat.Color,
-                DepthFormat.None);
-
-            Viewport viewportBackup = _spriteBatch.GraphicsDevice.Viewport;
-
-            try
-            {
-                _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
-                _spriteBatch.GraphicsDevice.Clear(Color.Black);
-                _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.BlendColorBlendState);
-                _spriteBatch.Draw(texture, texture.Bounds, Color.White);
-                _spriteBatch.End();
-                _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.BlendAlphaBlendState);
-                _spriteBatch.Draw(texture, texture.Bounds, Color.White);
-                _spriteBatch.End();
-
-                Color[] data = new Color[texture.Width * texture.Height];
-                renderTarget.GetData(data);
-                _spriteBatch.GraphicsDevice.SetRenderTarget(null);
-                _spriteBatch.GraphicsDevice.Textures[0] = null;
-                texture.SetData(data);
-            }
-            finally
-            {
-                _spriteBatch.GraphicsDevice.Viewport = viewportBackup;
-            }
-        }
-
-        public Texture2D LoadTextureFromStream(Stream stream, bool preMultiplyAlpha = true)
-        {
-            Texture2D texture = LoadTextureFromStreamInternal(stream);
-
-            if (preMultiplyAlpha)
-            {
-                PreMultiplyAlpha(texture);
-            }
-            return texture;
-        }
-
-        private Texture2D LoadTextureFromStreamInternal(Stream stream)
-        {
-            return Texture2D.FromStream(_spriteBatch.GraphicsDevice, stream);
+            _gridRenderer = new GridRenderer(spriteBatch, map, _highlightTexture);
+            _spriteLoader = spriteLoader;
         }
 
         public void DrawMap(CameraHandler camera)
         {
-            _spriteBatch.Begin(SpriteSortMode.Texture, BlendState.NonPremultiplied, SamplerState.PointClamp, null, null, null, camera.TransformMatrix);
-            Rectangle viewBounds = camera.GetViewBounds();
-            var visibleTiles = _map.GetVisibleTiles(viewBounds);
-
-            foreach (var tile in visibleTiles)
-            {
-                Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
-                DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false);
-            }
-
-            if (ShowObjects)
-            {
-                foreach (var tile in visibleTiles)
-                {
-                    Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
-                    DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
-                }
-            }
-            _spriteBatch.End();
+            RenderMap(camera.TransformMatrix, camera.GetViewBounds(), true, ShowObjects);
         }
 
         public void DrawGrid(CameraHandler camera)
         {
-            if (!ShowGrid)
-                return;
-
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, null, camera.TransformMatrix);
-
-            float mapWidth = _map.Width * Constants.TileWidth;
-            float mapHeight = _map.Height * Constants.TileHeight;
-
-            for (int x = 0; x <= _map.Width; x++)
+            if (ShowGrid)
             {
-                int posX = x * Constants.TileWidth;
-                Rectangle verticalLine = new Rectangle(posX, 0, 1, (int)mapHeight);
-                _spriteBatch.Draw(_highlightTexture, verticalLine, Color.Black);
+                _gridRenderer.Draw(camera, true, true);
             }
-
-            for (int y = 0; y <= _map.Height; y++)
-            {
-                int posY = y * Constants.TileHeight;
-                Rectangle horizontalLine = new Rectangle(0, posY, (int)mapWidth, 1);
-                _spriteBatch.Draw(_highlightTexture, horizontalLine, Color.Black);
-            }
-
-            DrawTileHighlights(camera);
-            _spriteBatch.End();
         }
 
         public void DrawTileHighlight(CameraHandler camera, MapTile hoveredTile)
         {
-            if (hoveredTile == null)
-                return;
-
+            if (hoveredTile == null) return;
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, null, camera.TransformMatrix);
             Vector2 pos = ToScreenCoordinates(hoveredTile.X, hoveredTile.Y);
-            Rectangle highlightRect = new Rectangle((int)pos.X, (int)pos.Y, Constants.TileWidth, Constants.TileHeight);
+            Rectangle highlightRect = new((int)pos.X, (int)pos.Y, Constants.TileWidth, Constants.TileHeight);
             _spriteBatch.Draw(_highlightTexture, highlightRect, null, Color.Yellow * 0.5f, 0f, Vector2.Zero, SpriteEffects.None, 0f);
             _spriteBatch.End();
-        }
-
-        private void DrawTileHighlights(CameraHandler camera)
-        {
-            Rectangle viewBounds = camera.GetViewBounds();
-            var visibleTiles = _map.GetVisibleTiles(viewBounds);
-
-            foreach (var tile in visibleTiles)
-            {
-                Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
-
-                if (tile.IsTeleport)
-                    DrawTileOutline(pos, Color.Blue);
-                if (!tile.IsMoveAllowed)
-                    DrawTileOutline(pos, Color.Red);
-                if (tile.IsFarmingAllowed)
-                    DrawTileOutline(pos, Color.Green);
-            }
-        }
-
-        private void DrawTileOutline(Vector2 position, Color color)
-        {
-            int tileWidth = Constants.TileWidth;
-            int tileHeight = Constants.TileHeight;
-            Rectangle rect = new((int)position.X, (int)position.Y, tileWidth, tileHeight);
-            int thickness = 2;
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y + rect.Height - thickness, rect.Width, thickness), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X + rect.Width - thickness, rect.Y, thickness, rect.Height), color);
-        }
-
-        private void DrawSpriteIfExists(int spriteId, int frameIndex, Vector2 position, bool isObjectSprite = false)
-        {
-            if (!_spriteTextures.TryGetValue(spriteId, out Texture2D texture))
-                return;
-
-            Constants.SpriteFrame frame = GetSpriteFrame(spriteId, frameIndex);
-            Rectangle sourceRect = new(frame.Left, frame.Top, frame.Width, frame.Height);
-
-            if (isObjectSprite)
-            {
-                position.X += frame.PivotX;
-                position.Y += frame.PivotY;
-            }
-            _spriteBatch.Draw(texture, position, sourceRect, Color.White);
         }
 
         public void DrawDebugOverlay(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
@@ -225,93 +62,20 @@ namespace IsometricMapViewer.Rendering
 
         public Texture2D RenderFullMapToTexture()
         {
-            int mapWidth = _map.Width * Constants.TileWidth;
-            int mapHeight = _map.Height * Constants.TileHeight;
-            RenderTarget2D renderTarget = new RenderTarget2D(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
-            _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
-            _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
-
-            _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.PremultipliedBlendState, SamplerState.PointClamp);
-
-            // Draw tiles and optionally objects
-            for (int y = 0; y < _map.Height; y++)
-            {
-                for (int x = 0; x < _map.Width; x++)
-                {
-                    var tile = _map.Tiles[x, y];
-                    Vector2 pos = new(x * Constants.TileWidth, y * Constants.TileHeight);
-                    DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false);
-
-                    if (ShowObjects)
-                    {
-                        DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
-                    }
-                }
-            }
-            _spriteBatch.End();
-            _spriteBatch.GraphicsDevice.SetRenderTarget(null);
-            return renderTarget;
+            return RenderMapToTexture(true, true);
         }
 
         public Texture2D RenderObjectsToTexture()
         {
-            int mapWidth = _map.Width * Constants.TileWidth;
-            int mapHeight = _map.Height * Constants.TileHeight;
-            RenderTarget2D renderTarget = new RenderTarget2D(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
-            _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
-            _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
-            _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.PremultipliedBlendState, SamplerState.PointClamp);
-
-            for (int y = 0; y < _map.Height; y++)
-            {
-                for (int x = 0; x < _map.Width; x++)
-                {
-                    var tile = _map.Tiles[x, y];
-
-                    if (tile.ObjectSprite != -1)
-                    {
-                        Vector2 pos = new Vector2(x * Constants.TileWidth, y * Constants.TileHeight);
-                        DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
-                    }
-                }
-            }
-            _spriteBatch.End();
-            _spriteBatch.GraphicsDevice.SetRenderTarget(null);
-            return renderTarget;
+            return RenderMapToTexture(false, true);
         }
 
-        public Texture2D CreateTilesetTexture(List<(int SpriteID, int FrameIndex)> uniqueTiles, int columns)
+        private RenderTarget2D RenderMapToTexture(bool drawTiles, bool drawObjects)
         {
-            int tileWidth = Constants.TileWidth;  // 32
-            int tileHeight = Constants.TileHeight; // 32
-            int tileCount = uniqueTiles.Count;
-            int rows = (tileCount + columns - 1) / columns;
-            int imageWidth = columns * tileWidth;
-            int imageHeight = rows * tileHeight;
-
-            RenderTarget2D renderTarget = new RenderTarget2D(_spriteBatch.GraphicsDevice, imageWidth, imageHeight);
-
-            _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
-            _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
-
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Opaque);
-
-            for (int i = 0; i < tileCount; i++)
-            {
-                var (spriteID, frameIndex) = uniqueTiles[i];
-                var sprite = GetSprite(spriteID);
-
-                if (sprite != null && frameIndex >= 0 && frameIndex < sprite.Frames.Count)
-                {
-                    var frame = sprite.Frames[frameIndex];
-                    Rectangle sourceRect = new Rectangle(frame.Left, frame.Top, frame.Width, frame.Height);
-                    Vector2 position = new Vector2((i % columns) * tileWidth, (i / columns) * tileHeight);
-                    _spriteBatch.Draw(sprite.Texture, position, sourceRect, Color.White);
-                }
-            }
-            _spriteBatch.End();
-            _spriteBatch.GraphicsDevice.SetRenderTarget(null);
-
+            int mapWidth = _map.Width * Constants.TileWidth;
+            int mapHeight = _map.Height * Constants.TileHeight;
+            RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
+            RenderMap(Matrix.Identity, null, drawTiles, drawObjects, renderTarget);
             return renderTarget;
         }
 
@@ -322,47 +86,83 @@ namespace IsometricMapViewer.Rendering
 
         public void Dispose()
         {
-            foreach (var spriteFile in _spriteFiles.Values)
-            {
-                spriteFile.Dispose();
-            }
             _highlightTexture.Dispose();
+        }
+
+        private void RenderMap(Matrix? transform, Rectangle? bounds, bool drawTiles,
+                               bool drawObjects, RenderTarget2D renderTarget = null)
+        {
+            if (renderTarget != null)
+            {
+                _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
+                _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
+            }
+
+            _spriteBatch.Begin(
+                SpriteSortMode.Texture,
+                renderTarget != null ? Constants.PremultipliedBlendState : BlendState.NonPremultiplied,
+                SamplerState.PointClamp,
+                null, null, null, transform
+            );
+
+            if (bounds.HasValue)
+            {
+                var visibleTiles = _map.GetVisibleTiles(bounds.Value);
+                foreach (var tile in visibleTiles)
+                {
+                    Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
+
+                    if (drawTiles)
+                        DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false);
+                    if (drawObjects)
+                        DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
+                }
+            }
+            else
+            {
+                for (int y = 0; y < _map.Height; y++)
+                {
+                    for (int x = 0; x < _map.Width; x++)
+                    {
+                        var tile = _map.Tiles[x, y];
+                        Vector2 pos = ToScreenCoordinates(x, y);
+
+                        if (drawTiles)
+                            DrawSpriteIfExists(tile.TileSprite, tile.TileFrame, pos, false);
+                        if (drawObjects)
+                            DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
+                    }
+                }
+            }
+
+            _spriteBatch.End();
+
+            if (renderTarget != null)
+            {
+                _spriteBatch.GraphicsDevice.SetRenderTarget(null);
+            }
+        }
+
+        private void DrawSpriteIfExists(int spriteId, int frameIndex, Vector2 position, bool isObjectSprite = false)
+        {
+            var texture = _spriteLoader.GetTexture(spriteId);
+
+            if (texture == null) return;
+
+            Constants.SpriteFrame frame = _spriteLoader.GetSpriteFrame(spriteId, frameIndex);
+            Rectangle sourceRect = new(frame.Left, frame.Top, frame.Width, frame.Height);
+
+            if (isObjectSprite)
+            {
+                position.X += frame.PivotX;
+                position.Y += frame.PivotY;
+            }
+            _spriteBatch.Draw(texture, position, sourceRect, Color.White);
         }
 
         private static Vector2 ToScreenCoordinates(int tileX, int tileY)
         {
             return new Vector2(tileX * Constants.TileWidth, tileY * Constants.TileHeight);
-        }
-
-        private Constants.SpriteFrame GetSpriteFrame(int spriteId, int frameIndex)
-        {
-            foreach (var spriteFile in _spriteFiles.Values)
-            {
-                var sprite = spriteFile.GetSpriteById(spriteId);
-                if (sprite != null && frameIndex >= 0 && frameIndex < sprite.Frames.Count)
-                    return sprite.Frames[frameIndex];
-            }
-
-            return new Constants.SpriteFrame
-            {
-                Left = 0,
-                Top = 0,
-                Width = Constants.TileWidth,
-                Height = Constants.TileHeight,
-                PivotX = 0,
-                PivotY = 0
-            };
-        }
-
-        private Sprite GetSprite(int spriteID)
-        {
-            foreach (var spriteFile in _spriteFiles.Values)
-            {
-                var sprite = spriteFile.GetSpriteById(spriteID);
-                if (sprite != null)
-                    return sprite;
-            }
-            return null;
         }
     }
 }

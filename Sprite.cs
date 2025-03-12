@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
 using System.Linq;
 
-namespace IsometricMapViewer.Rendering
+namespace IsometricMapViewer
 {
     public class SpriteFile(GraphicsDevice graphicsDevice) : IDisposable
     {

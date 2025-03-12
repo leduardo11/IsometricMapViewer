@@ -25,6 +25,7 @@ namespace IsometricMapViewer.Rendering
         {
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
+            // Draw debug info
             string debugText = hoveredTile != null
                 ? $"Hovered Tile: (X: {hoveredTile.X}, Y: {hoveredTile.Y})\n" +
                   $"Tile Sprite: {hoveredTile.TileSprite}\n" +
@@ -32,6 +33,7 @@ namespace IsometricMapViewer.Rendering
                 : "No tile hovered\n";
             _spriteBatch.DrawString(_font, debugText, new Vector2(10, 10), Color.White);
 
+            // Draw hotkeys or help text
             float maxTextWidth = ShowHotkeys
                 ? Constants.Hotkeys.Max(h => _font.MeasureString($"{h.KeyCombo}: {h.Description}").X) + 10
                 : _font.MeasureString("Press F1 for Help").X + 10;
@@ -53,6 +55,7 @@ namespace IsometricMapViewer.Rendering
                 _spriteBatch.DrawString(_font, "Press F1 for Help", new Vector2(startX, 10), Color.Yellow);
             }
 
+            // Draw property legends for hovered tile
             if (hoveredTile != null)
             {
                 float legendX = 10;
@@ -60,35 +63,25 @@ namespace IsometricMapViewer.Rendering
                 float squareSize = 10;
                 float spacing = 5;
 
-                if (!hoveredTile.IsMoveAllowed)
-                {
-                    _spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Red);
-                    _spriteBatch.DrawString(_font, "Blocked", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                    legendY += squareSize + spacing;
-                }
-
-                if (hoveredTile.IsFarmingAllowed)
-                {
-                    _spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Green);
-                    _spriteBatch.DrawString(_font, "Farmable", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                    legendY += squareSize + spacing;
-                }
-
-                if (hoveredTile.IsWater)
-                {
-                    _spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Cyan);
-                    _spriteBatch.DrawString(_font, "Water", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                    legendY += squareSize + spacing;
-                }
-
-                if (hoveredTile.IsTeleport)
-                {
-                    _spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Blue);
-                    _spriteBatch.DrawString(_font, "Teleport", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                }
+                // Use helper method to draw each property
+                legendY = DrawPropertyLegend("Blocked", Color.Red, !hoveredTile.IsMoveAllowed, legendX, legendY, squareSize, spacing);
+                legendY = DrawPropertyLegend("Farmable", Color.Green, hoveredTile.IsFarmingAllowed, legendX, legendY, squareSize, spacing);
+                legendY = DrawPropertyLegend("Water", Color.Cyan, hoveredTile.IsWater, legendX, legendY, squareSize, spacing);
+                legendY = DrawPropertyLegend("Teleport", Color.Blue, hoveredTile.IsTeleport, legendX, legendY, squareSize, spacing);
             }
 
             _spriteBatch.End();
+        }
+
+        private float DrawPropertyLegend(string propertyName, Color color, bool condition, float x, float y, float squareSize, float spacing)
+        {
+            if (condition)
+            {
+                _spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)x, (int)y, (int)squareSize, (int)squareSize), color);
+                _spriteBatch.DrawString(_font, propertyName, new Vector2(x + squareSize + spacing, y), Color.White);
+                y += squareSize + spacing;
+            }
+            return y;
         }
 
         public void Dispose()

@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using IsometricMapViewer.Handlers;
+using IsometricMapViewer.Loaders;
 using IsometricMapViewer.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -68,8 +69,9 @@ namespace IsometricMapViewer
         protected override void LoadContent()
         {
             var font = Content.Load<SpriteFont>("Default");
-            _renderer = new GameRenderer(_spriteBatch, font, GraphicsDevice, _map);
-            _renderer.LoadSprites();
+            var spriteLoader = new SpriteLoader(GraphicsDevice); 
+            spriteLoader.LoadSprites(); 
+            _renderer = new GameRenderer(_spriteBatch, font, GraphicsDevice, _map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }
 
