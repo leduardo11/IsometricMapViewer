@@ -16,6 +16,7 @@ namespace IsometricMapViewer.Rendering
         private readonly Texture2D _highlightTexture;
         private readonly Dictionary<int, Texture2D> _spriteTextures = [];
         private readonly Dictionary<string, SpriteFile> _spriteFiles = [];
+
         public bool ShowGrid { get; set; } = false;
         public bool ShowHotkeys { get; set; } = false;
         public bool ShowObjects { get; set; } = true;
@@ -77,6 +78,7 @@ namespace IsometricMapViewer.Rendering
                 _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.BlendAlphaBlendState);
                 _spriteBatch.Draw(texture, texture.Bounds, Color.White);
                 _spriteBatch.End();
+
                 Color[] data = new Color[texture.Width * texture.Height];
                 renderTarget.GetData(data);
                 _spriteBatch.GraphicsDevice.SetRenderTarget(null);
@@ -202,8 +204,10 @@ namespace IsometricMapViewer.Rendering
         {
             if (!_spriteTextures.TryGetValue(spriteId, out Texture2D texture))
                 return;
+
             Constants.SpriteFrame frame = GetSpriteFrame(spriteId, frameIndex);
             Rectangle sourceRect = new(frame.Left, frame.Top, frame.Width, frame.Height);
+
             if (isObjectSprite)
             {
                 position.X += frame.PivotX;
@@ -214,79 +218,16 @@ namespace IsometricMapViewer.Rendering
 
         public void DrawDebugOverlay(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
         {
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-
-            string debugText = hoveredTile != null
-                ? $"Hovered Tile: (X: {hoveredTile.X}, Y: {hoveredTile.Y})\n" +
-                  $"Tile Sprite: {hoveredTile.TileSprite}\n" +
-                  $"Object Sprite: {hoveredTile.ObjectSprite}\n"
-                : "No tile hovered\n";
-            _spriteBatch.DrawString(_font, debugText, new Vector2(10, 10), Color.White);
-
-            float maxTextWidth = ShowHotkeys
-                ? Constants.Hotkeys.Max(h => _font.MeasureString($"{h.KeyCombo}: {h.Description}").X) + 10
-                : _font.MeasureString("Press F1 for Help").X + 10;
-            float startX = _spriteBatch.GraphicsDevice.Viewport.Width - maxTextWidth;
-
-            if (ShowHotkeys)
-            {
-                float hotkeyY = 10;
-                _spriteBatch.DrawString(_font, "Hotkeys:", new Vector2(startX, hotkeyY), Color.Yellow);
-                hotkeyY += _font.LineSpacing;
-                foreach (var (keyCombo, description) in Constants.Hotkeys)
-                {
-                    _spriteBatch.DrawString(_font, $"{keyCombo}: {description}", new Vector2(startX, hotkeyY), Color.White);
-                    hotkeyY += _font.LineSpacing;
-                }
-            }
-            else
-            {
-                _spriteBatch.DrawString(_font, "Press F1 for Help", new Vector2(startX, 10), Color.Yellow);
-            }
-
-            // Rest of the method remains unchanged...
-            if (hoveredTile != null)
-            {
-                float legendX = 10;
-                float legendY = _spriteBatch.GraphicsDevice.Viewport.Height - 100;
-                float squareSize = 10;
-                float spacing = 5;
-
-                if (!hoveredTile.IsMoveAllowed)
-                {
-                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Red);
-                    _spriteBatch.DrawString(_font, "Blocked", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                    legendY += squareSize + spacing;
-                }
-
-                if (hoveredTile.IsFarmingAllowed)
-                {
-                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Green);
-                    _spriteBatch.DrawString(_font, "Farmable", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                    legendY += squareSize + spacing;
-                }
-
-                if (hoveredTile.IsWater)
-                {
-                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Cyan);
-                    _spriteBatch.DrawString(_font, "Water", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                    legendY += squareSize + spacing;
-                }
-
-                if (hoveredTile.IsTeleport)
-                {
-                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Blue);
-                    _spriteBatch.DrawString(_font, "Teleport", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
-                }
-            }
-            _spriteBatch.End();
+            using var debugRenderer = new DebugRenderer(_spriteBatch, _font, _spriteBatch.GraphicsDevice);
+            debugRenderer.ShowHotkeys = this.ShowHotkeys;
+            debugRenderer.Draw(camera, hoveredTile, mouseWorldPos);
         }
 
         public Texture2D RenderFullMapToTexture()
         {
             int mapWidth = _map.Width * Constants.TileWidth;
             int mapHeight = _map.Height * Constants.TileHeight;
-            RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
+            RenderTarget2D renderTarget = new RenderTarget2D(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
             _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
             _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
 
@@ -316,7 +257,7 @@ namespace IsometricMapViewer.Rendering
         {
             int mapWidth = _map.Width * Constants.TileWidth;
             int mapHeight = _map.Height * Constants.TileHeight;
-            RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
+            RenderTarget2D renderTarget = new RenderTarget2D(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
             _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
             _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
             _spriteBatch.Begin(SpriteSortMode.Deferred, Constants.PremultipliedBlendState, SamplerState.PointClamp);
@@ -329,7 +270,7 @@ namespace IsometricMapViewer.Rendering
 
                     if (tile.ObjectSprite != -1)
                     {
-                        Vector2 pos = new(x * Constants.TileWidth, y * Constants.TileHeight);
+                        Vector2 pos = new Vector2(x * Constants.TileWidth, y * Constants.TileHeight);
                         DrawSpriteIfExists(tile.ObjectSprite, tile.ObjectFrame, pos, true);
                     }
                 }
@@ -344,11 +285,11 @@ namespace IsometricMapViewer.Rendering
             int tileWidth = Constants.TileWidth;  // 32
             int tileHeight = Constants.TileHeight; // 32
             int tileCount = uniqueTiles.Count;
-            int rows = (tileCount + columns - 1) / columns; // Ceiling division
+            int rows = (tileCount + columns - 1) / columns;
             int imageWidth = columns * tileWidth;
             int imageHeight = rows * tileHeight;
 
-            RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, imageWidth, imageHeight);
+            RenderTarget2D renderTarget = new RenderTarget2D(_spriteBatch.GraphicsDevice, imageWidth, imageHeight);
 
             _spriteBatch.GraphicsDevice.SetRenderTarget(renderTarget);
             _spriteBatch.GraphicsDevice.Clear(Color.Transparent);
@@ -363,8 +304,8 @@ namespace IsometricMapViewer.Rendering
                 if (sprite != null && frameIndex >= 0 && frameIndex < sprite.Frames.Count)
                 {
                     var frame = sprite.Frames[frameIndex];
-                    Rectangle sourceRect = new(frame.Left, frame.Top, frame.Width, frame.Height);
-                    Vector2 position = new((i % columns) * tileWidth, (i / columns) * tileHeight);
+                    Rectangle sourceRect = new Rectangle(frame.Left, frame.Top, frame.Width, frame.Height);
+                    Vector2 position = new Vector2((i % columns) * tileWidth, (i / columns) * tileHeight);
                     _spriteBatch.Draw(sprite.Texture, position, sourceRect, Color.White);
                 }
             }
@@ -386,18 +327,6 @@ namespace IsometricMapViewer.Rendering
                 spriteFile.Dispose();
             }
             _highlightTexture.Dispose();
-        }
-
-        private static string GetSpriteFileName(int spriteId)
-        {
-            if (spriteId == -1) return "None";
-
-            var spriteLoad = Constants.SpritesToLoad
-                .FirstOrDefault(s => spriteId >= s.startIndex && spriteId < s.startIndex + s.count);
-
-            return spriteLoad != default
-                ? spriteLoad.fileName
-                : "Unknown";
         }
 
         private static Vector2 ToScreenCoordinates(int tileX, int tileY)
@@ -430,7 +359,8 @@ namespace IsometricMapViewer.Rendering
             foreach (var spriteFile in _spriteFiles.Values)
             {
                 var sprite = spriteFile.GetSpriteById(spriteID);
-                if (sprite != null) return sprite;
+                if (sprite != null)
+                    return sprite;
             }
             return null;
         }
