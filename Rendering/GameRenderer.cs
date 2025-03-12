@@ -17,6 +17,7 @@ namespace IsometricMapViewer.Rendering
         private readonly Dictionary<int, Texture2D> _spriteTextures = [];
         private readonly Dictionary<string, SpriteFile> _spriteFiles = [];
         public bool ShowGrid { get; set; } = false;
+        public bool ShowHotkeys { get; set; } = false;
         public bool ShowObjects { get; set; } = true;
 
         public GameRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice, Map map)
@@ -214,13 +215,70 @@ namespace IsometricMapViewer.Rendering
         public void DrawDebugOverlay(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
         {
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-            string debugText = hoveredTile != null ? $"Hovered Tile: (X: {hoveredTile.X}, Y: {hoveredTile.Y})\n" +
-                                                     $"Tile Sprite: {hoveredTile.TileSprite} ({GetSpriteFileName(hoveredTile.TileSprite)})\n" +
-                                                     $"Object Sprite: {hoveredTile.ObjectSprite} ({GetSpriteFileName(hoveredTile.ObjectSprite)})\n" +
-                                                     $"Move: {hoveredTile.IsMoveAllowed}, Teleport: {hoveredTile.IsTeleport}\n" +
-                                                     $"Farm: {hoveredTile.IsFarmingAllowed}, Water: {hoveredTile.IsWater}\n" : "No tile hovered\n";
-            debugText += $"Zoom Level: {camera.Zoom:F2}\nGrid: {(ShowGrid ? "On" : "Off")}\nObjects: {(ShowObjects ? "On" : "Off")}";
+
+            string debugText = hoveredTile != null
+                ? $"Hovered Tile: (X: {hoveredTile.X}, Y: {hoveredTile.Y})\n" +
+                  $"Tile Sprite: {hoveredTile.TileSprite}\n" +
+                  $"Object Sprite: {hoveredTile.ObjectSprite}\n"
+                : "No tile hovered\n";
             _spriteBatch.DrawString(_font, debugText, new Vector2(10, 10), Color.White);
+
+            float maxTextWidth = ShowHotkeys
+                ? Constants.Hotkeys.Max(h => _font.MeasureString($"{h.KeyCombo}: {h.Description}").X) + 10
+                : _font.MeasureString("Press F1 for Help").X + 10;
+            float startX = _spriteBatch.GraphicsDevice.Viewport.Width - maxTextWidth;
+
+            if (ShowHotkeys)
+            {
+                float hotkeyY = 10;
+                _spriteBatch.DrawString(_font, "Hotkeys:", new Vector2(startX, hotkeyY), Color.Yellow);
+                hotkeyY += _font.LineSpacing;
+                foreach (var (keyCombo, description) in Constants.Hotkeys)
+                {
+                    _spriteBatch.DrawString(_font, $"{keyCombo}: {description}", new Vector2(startX, hotkeyY), Color.White);
+                    hotkeyY += _font.LineSpacing;
+                }
+            }
+            else
+            {
+                _spriteBatch.DrawString(_font, "Press F1 for Help", new Vector2(startX, 10), Color.Yellow);
+            }
+
+            // Rest of the method remains unchanged...
+            if (hoveredTile != null)
+            {
+                float legendX = 10;
+                float legendY = _spriteBatch.GraphicsDevice.Viewport.Height - 100;
+                float squareSize = 10;
+                float spacing = 5;
+
+                if (!hoveredTile.IsMoveAllowed)
+                {
+                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Red);
+                    _spriteBatch.DrawString(_font, "Blocked", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
+                    legendY += squareSize + spacing;
+                }
+
+                if (hoveredTile.IsFarmingAllowed)
+                {
+                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Green);
+                    _spriteBatch.DrawString(_font, "Farmable", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
+                    legendY += squareSize + spacing;
+                }
+
+                if (hoveredTile.IsWater)
+                {
+                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Cyan);
+                    _spriteBatch.DrawString(_font, "Water", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
+                    legendY += squareSize + spacing;
+                }
+
+                if (hoveredTile.IsTeleport)
+                {
+                    _spriteBatch.Draw(_highlightTexture, new Rectangle((int)legendX, (int)legendY, (int)squareSize, (int)squareSize), Color.Blue);
+                    _spriteBatch.DrawString(_font, "Teleport", new Vector2(legendX + squareSize + spacing, legendY), Color.White);
+                }
+            }
             _spriteBatch.End();
         }
 

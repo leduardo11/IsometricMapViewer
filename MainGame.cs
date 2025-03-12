@@ -18,8 +18,10 @@ namespace IsometricMapViewer
         private GameRenderer _renderer;
         private MapExporter _exporter;
         private MapTile _hoveredTile;
-        public Map Map => _map;
+        private string _mapPath;
         private static readonly string MapsFolder = Path.Combine("Maps");
+        public Map Map => _map;
+        public MapTile HoveredTile => _hoveredTile;
 
         public MainGame()
         {
@@ -35,19 +37,18 @@ namespace IsometricMapViewer
         protected override void Initialize()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-
             var tileLoader = new TileLoader(GraphicsDevice);
             tileLoader.PreloadAllSprites();
-            string mapPath = GetFirstMapFilePath();
+            _mapPath = GetFirstMapFilePath();
 
-            if (string.IsNullOrEmpty(mapPath))
+            if (string.IsNullOrEmpty(_mapPath))
             {
                 ConsoleLogger.LogError("No .amd files found in the Maps folder. Exiting.");
                 Exit();
                 return;
             }
 
-            _map = LoadMap(mapPath);
+            _map = LoadMap(_mapPath);
 
             if (_map == null)
             {
@@ -101,6 +102,16 @@ namespace IsometricMapViewer
             _renderer.ShowObjects = !_renderer.ShowObjects;
         }
 
+        public void ToggleFullscreen()
+        {
+            _graphics.ToggleFullScreen();
+        }
+
+        public void ToggleHotkeysDisplay()
+        {
+            _renderer.ShowHotkeys = !_renderer.ShowHotkeys;
+        }
+
         private static string GetFirstMapFilePath()
         {
             string mapPath = Path.Combine(MapsFolder, Constants.MapName + ".amd");
@@ -128,6 +139,19 @@ namespace IsometricMapViewer
             }
 
             return map;
+        }
+
+        public void SaveMap()
+        {
+            if (!string.IsNullOrEmpty(_mapPath))
+            {
+                _map.Save(_mapPath);
+                ConsoleLogger.LogInfo($"Map saved to {_mapPath}");
+            }
+            else
+            {
+                ConsoleLogger.LogWarning("No map path to save to.");
+            }
         }
 
         public void ExportMapToPng()

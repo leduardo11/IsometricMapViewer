@@ -59,6 +59,27 @@ namespace IsometricMapViewer
             AlphaDestinationBlend = Blend.InverseSourceAlpha
         };
 
+        public static readonly (string KeyCombo, string Description)[] hotkeys =
+        [
+         ("Ctrl + P", "Export Map to PNG"),
+         ("Ctrl + T", "Export Map to TSX/TMX"),
+         ("Ctrl + O", "Export Objects to PNG"),
+         ("Ctrl + S", "Save Map"),
+         ("Ctrl + M", "Toggle Movement Allowed"),
+         ("Ctrl + E", "Toggle Teleport"),
+         ("Ctrl + F", "Toggle Farming Allowed"),
+         ("Ctrl + W", "Toggle Water"),
+         ("G", "Toggle Grid"),
+         ("O", "Toggle Objects"),
+         ("W/A/S/D or Arrows", "Move Camera"),
+         ("+ / -", "Zoom In/Out"),
+         ("Escape", "Exit Application"),
+         ("Right/Middle Mouse", "Drag to Move"),
+         ("Mouse Wheel", "Zoom"),
+         ("Alt + Enter", "Toggle Fullscreen"),
+         ("F1", "Toggle Help")
+        ];
+
         public static readonly (string fileName, int startIndex, int count)[] SpritesToLoad =
         [
          ("maptiles1.spr", 0, 32),
@@ -99,5 +120,7 @@ namespace IsometricMapViewer
          ("treeshadows.spr", 150, 46),
          ("trees1.spr", 100, 46),
         ];
+
+        public static (string KeyCombo, string Description)[] Hotkeys => hotkeys;
     }
 }

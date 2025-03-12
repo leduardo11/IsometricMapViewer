@@ -164,6 +164,65 @@ namespace IsometricMapViewer
             }
         }
 
+        public void UpdateTileProperties(int x, int y, bool isMoveAllowed, bool isTeleport, bool isFarmingAllowed, bool isWater)
+        {
+            if (x < 0 || x >= Width || y < 0 || y >= Height)
+            {
+                throw new ArgumentOutOfRangeException("Tile coordinates out of range");
+            }
+            Tiles[x, y].SetProperties(isMoveAllowed, isTeleport, isFarmingAllowed, isWater);
+        }
+
+        public void Save(string amdFilePath)
+        {
+            try
+            {
+                using var stream = File.OpenWrite(amdFilePath);
+                using var writer = new BinaryWriter(stream);
+
+                // Write header
+                string header = $"MAPSIZEX={Width},MAPSIZEY={Height}\0";
+                byte[] headerBytes = System.Text.Encoding.ASCII.GetBytes(header);
+
+                if (headerBytes.Length > Constants.HeaderBufferSize)
+                {
+                    throw new InvalidOperationException("Header too large");
+                }
+
+                writer.Write(headerBytes);
+                int padding = Constants.HeaderBufferSize - headerBytes.Length;
+                
+                if (padding > 0)
+                {
+                    writer.Write(new byte[padding]);
+                }
+
+                // Write tile data
+                for (int y = 0; y < Height; y++)
+                {
+                    for (int x = 0; x < Width; x++)
+                    {
+                        var tile = Tiles[x, y];
+                        writer.Write((short)tile.TileSprite);
+                        writer.Write((short)tile.TileFrame);
+                        writer.Write((short)tile.ObjectSprite);
+                        writer.Write((short)tile.ObjectFrame);
+                        byte flags = 0;
+                        if (!tile.IsMoveAllowed) flags |= 0x80;
+                        if (tile.IsTeleport) flags |= 0x40;
+                        if (tile.IsFarmingAllowed) flags |= 0x20;
+                        if (tile.IsWater) flags |= 0x10;
+                        writer.Write(flags);
+                        writer.Write((byte)0); // Byte 9, assumed unused
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogger.LogError($"Failed to save map {amdFilePath}: {ex.Message}");
+            }
+        }
+
         public void AssociateTilesWithSprites(Dictionary<int, Tile> cacheTiles, Texture2D defaultTexture)
         {
             for (int y = 0; y < Height; y++)
@@ -221,6 +280,14 @@ namespace IsometricMapViewer
             tile.IsFarmingAllowed = (flags & 0x20) != 0;
             tile.IsWater = (flags & 0x10) != 0;
             return tile;
+        }
+
+        public void SetProperties(bool isMoveAllowed, bool isTeleport, bool isFarmingAllowed, bool isWater)
+        {
+            IsMoveAllowed = isMoveAllowed;
+            IsTeleport = isTeleport;
+            IsFarmingAllowed = isFarmingAllowed;
+            IsWater = isWater;
         }
     }
 

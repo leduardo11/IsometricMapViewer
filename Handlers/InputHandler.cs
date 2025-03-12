@@ -1,31 +1,50 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using IsometricMapViewer.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 namespace IsometricMapViewer.Handlers
 {
-    public class InputHandler(CameraHandler camera, GraphicsDevice graphicsDevice, Game game)
+    public class InputHandler
     {
-        private readonly CameraHandler _camera = camera;
-        private readonly Viewport _viewport = graphicsDevice.Viewport;
-        private readonly Game _game = game;
-        private MouseState _previousMouseState = Mouse.GetState();
-        private KeyboardState _previousKeyboardState = Keyboard.GetState();
+        private readonly CameraHandler _camera;
+        private readonly Viewport _viewport;
+        private readonly MainGame _game;
+        private MouseState _previousMouseState;
+        private KeyboardState _previousKeyboardState;
         private Vector2 _dragStartPosition;
         private bool _isDragging;
-        private string _gotoInput = "";
+        private readonly Dictionary<Keys, Action> _ctrlHotkeys;
+        private readonly Dictionary<Keys, Action> _directHotkeys;
 
-        private readonly List<(Keys Key, Action Action)> _controlHotkeys =
-        [
-            (Keys.P, () => ((MainGame)game).ExportMapToPng()),
-            (Keys.T, () => ((MainGame)game).ExportMapToTsx()),
-            (Keys.G, () => ((MainGame)game).ToggleGrid()),
-            (Keys.O, () => ((MainGame)game).ToggleObjects()),
-            (Keys.U, () => ((MainGame)game).ExportObjectsToPng())
-        ];
+        public InputHandler(CameraHandler camera, GraphicsDevice graphicsDevice, Game game)
+        {
+            _camera = camera;
+            _viewport = graphicsDevice.Viewport;
+            _game = game as MainGame ?? throw new ArgumentException("Game must be of type MainGame", nameof(game));
+            _previousMouseState = Mouse.GetState();
+            _previousKeyboardState = Keyboard.GetState();
+
+            _ctrlHotkeys = new Dictionary<Keys, Action>
+            {
+                { Keys.P, () => _game.ExportMapToPng() },
+                { Keys.T, () => _game.ExportMapToTsx() },
+                { Keys.O, () => _game.ExportObjectsToPng() },
+                { Keys.S, () => _game.SaveMap() },
+                { Keys.M, () => ToggleTileProperty(t => (!t.IsMoveAllowed, t.IsTeleport, t.IsFarmingAllowed, t.IsWater)) },
+                { Keys.E, () => ToggleTileProperty(t => (t.IsMoveAllowed, !t.IsTeleport, t.IsFarmingAllowed, t.IsWater)) },
+                { Keys.F, () => ToggleTileProperty(t => (t.IsMoveAllowed, t.IsTeleport, !t.IsFarmingAllowed, t.IsWater)) },
+                { Keys.W, () => ToggleTileProperty(t => (t.IsMoveAllowed, t.IsTeleport, t.IsFarmingAllowed, !t.IsWater)) }
+            };
+
+            _directHotkeys = new Dictionary<Keys, Action>
+            {
+                { Keys.G, ToggleGrid },
+                { Keys.O, ToggleObjects }
+            };
+        }
 
         public void Update(GameTime gameTime)
         {
@@ -37,22 +56,35 @@ namespace IsometricMapViewer.Handlers
             HandleKeyboardZoom(keyboardState);
             HandleKeyboardMovement(keyboardState);
             HandleApplicationClose(keyboardState);
-            HandleGotoCommand(keyboardState);
-            HandleCTRLHotkeys(keyboardState);
+            HandleHotkeys(keyboardState);
+            HandleScreenResolutionToggle(keyboardState);
+            HandleShowHotkeyToggle(keyboardState);
 
             _previousMouseState = mouseState;
             _previousKeyboardState = keyboardState;
         }
 
-        private void HandleCTRLHotkeys(KeyboardState keyboardState)
+        private void HandleHotkeys(KeyboardState keyboardState)
         {
-            if (keyboardState.IsKeyDown(Keys.LeftControl) || keyboardState.IsKeyDown(Keys.RightControl))
+            bool isCtrlDown = keyboardState.IsKeyDown(Keys.LeftControl) || keyboardState.IsKeyDown(Keys.RightControl);
+
+            if (isCtrlDown)
             {
-                foreach (var (key, action) in _controlHotkeys)
+                foreach (var kv in _ctrlHotkeys)
                 {
-                    if (keyboardState.IsKeyDown(key) && !_previousKeyboardState.IsKeyDown(key))
+                    if (keyboardState.IsKeyDown(kv.Key) && !_previousKeyboardState.IsKeyDown(kv.Key))
                     {
-                        action();
+                        kv.Value.Invoke();
+                    }
+                }
+            }
+            else
+            {
+                foreach (var kv in _directHotkeys)
+                {
+                    if (keyboardState.IsKeyDown(kv.Key) && !_previousKeyboardState.IsKeyDown(kv.Key))
+                    {
+                        kv.Value.Invoke();
                     }
                 }
             }
@@ -61,7 +93,6 @@ namespace IsometricMapViewer.Handlers
         private void HandleMouseDragging(MouseState mouseState)
         {
             Vector2 mousePos = mouseState.Position.ToVector2();
-
             if (mouseState.RightButton == ButtonState.Pressed || mouseState.MiddleButton == ButtonState.Pressed)
             {
                 if (!_isDragging && _viewport.Bounds.Contains(mouseState.Position))
@@ -84,11 +115,10 @@ namespace IsometricMapViewer.Handlers
 
         private void HandleZoom(MouseState mouseState)
         {
-            int scrollWheelDelta = mouseState.ScrollWheelValue - _previousMouseState.ScrollWheelValue;
-
-            if (scrollWheelDelta != 0)
+            int scrollDelta = mouseState.ScrollWheelValue - _previousMouseState.ScrollWheelValue;
+            if (scrollDelta != 0)
             {
-                float zoomFactor = scrollWheelDelta > 0 ? 1.1f : 0.9f;
+                float zoomFactor = scrollDelta > 0 ? 1.1f : 0.9f;
                 float newZoom = _camera.Zoom * zoomFactor;
                 _camera.ZoomAt(newZoom / _camera.Zoom, mouseState.Position.ToVector2());
             }
@@ -136,83 +166,47 @@ namespace IsometricMapViewer.Handlers
             }
         }
 
-        private void HandleGotoCommand(KeyboardState keyboardState)
+        private void HandleScreenResolutionToggle(KeyboardState keyboardState)
         {
-            // Only start goto command if 'G' is pressed without CTRL
-            if (keyboardState.IsKeyDown(Keys.G) &&
-                !keyboardState.IsKeyDown(Keys.LeftControl) &&
-                !keyboardState.IsKeyDown(Keys.RightControl) &&
-                string.IsNullOrEmpty(_gotoInput))
+            if ((keyboardState.IsKeyDown(Keys.LeftAlt) || keyboardState.IsKeyDown(Keys.RightAlt)) &&
+                keyboardState.IsKeyDown(Keys.Enter) && !_previousKeyboardState.IsKeyDown(Keys.Enter))
             {
-                _gotoInput = "G";
-            }
-
-            if (_gotoInput.StartsWith('G'))
-            {
-                foreach (Keys key in keyboardState.GetPressedKeys())
-                {
-                    if (key == Keys.Back && _gotoInput.Length > 1)
-                    {
-                        _gotoInput = _gotoInput.Substring(0, _gotoInput.Length - 1);
-                    }
-                    else
-                    {
-                        string charForKey = GetCharForKey(key);
-                        if (!string.IsNullOrEmpty(charForKey))
-                        {
-                            if (!(_gotoInput == "G" && charForKey == "g"))
-                            {
-                                _gotoInput += charForKey;
-                            }
-                        }
-                    }
-                }
-
-                if (keyboardState.IsKeyDown(Keys.Enter) && _gotoInput.Contains(','))
-                {
-                    string[] coords = [.. _gotoInput[1..].Split(',').Select(c => c.Trim())];
-
-                    if (coords.Length == 2 && int.TryParse(coords[0], out int targetX) && int.TryParse(coords[1], out int targetY))
-                    {
-                        Map map = ((MainGame)_game).Map;
-
-                        if (targetX >= 0 && targetX < map.Width && targetY >= 0 && targetY < map.Height)
-                        {
-                            Vector2 targetWorldPos = new Vector2(targetX * Constants.TileWidth, targetY * Constants.TileHeight);
-                            _camera.FocusOnPoint(targetWorldPos);
-                        }
-                        else
-                        {
-                            ConsoleLogger.LogWarning($"Invalid coordinates: X={targetX}, Y={targetY} - Must be within 0 to {map.Width - 1},{map.Height - 1}");
-                        }
-                    }
-                    _gotoInput = "";
-                }
+                _game.ToggleFullscreen();
             }
         }
 
-        private static string GetCharForKey(Keys key)
+        private void HandleShowHotkeyToggle(KeyboardState keyboardState)
         {
-            if (key >= Keys.A && key <= Keys.Z)
+            if (keyboardState.IsKeyDown(Keys.F1) && !_previousKeyboardState.IsKeyDown(Keys.F1))
             {
-                return ((char)('a' + (key - Keys.A))).ToString();
+                _game.ToggleHotkeysDisplay();
             }
+        }
 
-            return key switch
+        private void ToggleTileProperty(Func<MapTile, (bool, bool, bool, bool)> getNewProperties)
+        {
+            var hoveredTile = _game.HoveredTile;
+            if (hoveredTile != null)
             {
-                Keys.D0 or Keys.NumPad0 => "0",
-                Keys.D1 or Keys.NumPad1 => "1",
-                Keys.D2 or Keys.NumPad2 => "2",
-                Keys.D3 or Keys.NumPad3 => "3",
-                Keys.D4 or Keys.NumPad4 => "4",
-                Keys.D5 or Keys.NumPad5 => "5",
-                Keys.D6 or Keys.NumPad6 => "6",
-                Keys.D7 or Keys.NumPad7 => "7",
-                Keys.D8 or Keys.NumPad8 => "8",
-                Keys.D9 or Keys.NumPad9 => "9",
-                Keys.OemComma => ",",
-                _ => null,
-            };
+                var (newMoveAllowed, newTeleport, newFarmingAllowed, newWater) = getNewProperties(hoveredTile);
+                _game.Map.UpdateTileProperties(
+                    hoveredTile.X, hoveredTile.Y,
+                    newMoveAllowed,
+                    newTeleport,
+                    newFarmingAllowed,
+                    newWater
+                );
+            }
+        }
+
+        private void ToggleGrid()
+        {
+            _game.ToggleGrid();
+        }
+
+        private void ToggleObjects()
+        {
+            _game.ToggleObjects();
         }
     }
 }
