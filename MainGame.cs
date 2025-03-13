@@ -23,6 +23,8 @@ namespace IsometricMapViewer
         private static readonly string MapsFolder = Path.Combine("Maps");
         public Map Map => _map;
         public MapTile HoveredTile => _hoveredTile;
+        public GameRenderer Renderer => _renderer;
+        public Rectangle ThumbnailPanelBounds => _renderer.ThumbnailPanelBounds;
 
         public MainGame()
         {
@@ -135,6 +137,11 @@ namespace IsometricMapViewer
             {
                 ConsoleLogger.LogWarning("No map path to save to.");
             }
+        }
+
+        public void ScrollThumbnails(int direction)
+        {
+            _renderer.ScrollThumbnails(direction);
         }
 
         public void ToggleGrid()

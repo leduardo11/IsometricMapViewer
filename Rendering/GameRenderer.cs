@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using IsometricMapViewer.Handlers;
 using IsometricMapViewer.Loaders;
@@ -15,6 +16,11 @@ namespace IsometricMapViewer.Rendering
         private readonly Texture2D _highlightTexture;
         private readonly GridRenderer _gridRenderer;
         private readonly SpriteLoader _spriteLoader;
+        private const int _thumbnailPanelWidth = 200; // Width of the side panel
+        private const int _thumbnailSize = 64; // Max size for thumbnails
+        private const int _thumbnailSpacing = 10; // Space between thumbnails
+        private int _thumbnailScrollOffset = 0; // Index of the first visible thumbnail
+        private List<KeyValuePair<int, Texture2D>> _sortedTextures; // Cached sorted sprite list
 
         public bool ShowGrid { get; set; } = false;
         public bool ShowHotkeys { get; set; } = false;
@@ -30,6 +36,7 @@ namespace IsometricMapViewer.Rendering
             _highlightTexture.SetData(new[] { Color.White });
             _gridRenderer = new GridRenderer(spriteBatch, map, _highlightTexture);
             _spriteLoader = spriteLoader;
+            _sortedTextures = [.. _spriteLoader.GetAllTextures().OrderBy(k => k.Key)];
         }
 
         public void DrawMap(CameraHandler camera)
@@ -67,32 +74,33 @@ namespace IsometricMapViewer.Rendering
             if (!ShowThumbnails) return;
 
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+            _spriteBatch.Draw(_highlightTexture, ThumbnailPanelBounds, Color.Gray * 0.5f);
 
-            var textures = _spriteLoader.GetAllTextures();
-            int x = 10;
-            int y = 10;
-            int maxWidth = 64;
-            int maxHeight = 64;
-            int spacing = 10;
-            int itemsPerRow = (_spriteBatch.GraphicsDevice.Viewport.Width - 20) / (maxWidth + spacing);
-            int index = 0;
+            int verticalStep = _thumbnailSize + _thumbnailSpacing;
+            int visibleThumbnails = (int)Math.Ceiling((float)_spriteBatch.GraphicsDevice.Viewport.Height / verticalStep) + 1;
 
-            foreach (var kvp in textures.OrderBy(k => k.Key))
+            for (int i = _thumbnailScrollOffset; i < _thumbnailScrollOffset + visibleThumbnails && i < _sortedTextures.Count; i++)
             {
+                var kvp = _sortedTextures[i];
                 int spriteId = kvp.Key;
                 Texture2D texture = kvp.Value;
-                int row = index / itemsPerRow;
-                int col = index % itemsPerRow;
-                Vector2 position = new Vector2(x + col * (maxWidth + spacing), y + row * (maxHeight + spacing + _font.LineSpacing));
-                // Scale texture to fit thumbnail size while preserving aspect ratio
-                float scale = Math.Min((float)maxWidth / texture.Width, (float)maxHeight / texture.Height);
-                Rectangle destRect = new((int)position.X, (int)position.Y, (int)(texture.Width * scale), (int)(texture.Height * scale));
+
+                // Scale thumbnail to fit within thumbnailSize while preserving aspect ratio
+                float scale = Math.Min((float)_thumbnailSize / texture.Width, (float)_thumbnailSize / texture.Height);
+                int destWidth = (int)(texture.Width * scale);
+                int destHeight = (int)(texture.Height * scale);
+
+                // Center thumbnail horizontally in the panel
+                int x = ThumbnailPanelBounds.X + (_thumbnailPanelWidth - destWidth) / 2;
+                int y = ThumbnailPanelBounds.Y + (i - _thumbnailScrollOffset) * verticalStep;
+
+                Rectangle destRect = new Rectangle(x, y, destWidth, destHeight);
                 _spriteBatch.Draw(texture, destRect, Color.White);
+
                 // Draw sprite ID below the thumbnail
                 string idText = $"ID: {spriteId}";
-                Vector2 textPosition = new Vector2(position.X, position.Y + destRect.Height + spacing);
+                Vector2 textPosition = new Vector2(x, y + _thumbnailSize + 5);
                 _spriteBatch.DrawString(_font, idText, textPosition, Color.White);
-                index++;
             }
             _spriteBatch.End();
         }
@@ -107,13 +115,29 @@ namespace IsometricMapViewer.Rendering
             return RenderMapToTexture(false, true);
         }
 
-        private RenderTarget2D RenderMapToTexture(bool drawTiles, bool drawObjects)
+        public int ThumbnailScrollOffset
         {
-            int mapWidth = _map.Width * Constants.TileWidth;
-            int mapHeight = _map.Height * Constants.TileHeight;
-            RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
-            RenderMap(Matrix.Identity, null, drawTiles, drawObjects, renderTarget);
-            return renderTarget;
+            get => _thumbnailScrollOffset;
+            set => _thumbnailScrollOffset = value;
+        }
+
+        public Rectangle ThumbnailPanelBounds
+        {
+            get
+            {
+                int panelX = _spriteBatch.GraphicsDevice.Viewport.Width - _thumbnailPanelWidth;
+                int panelY = 0;
+                int panelHeight = _spriteBatch.GraphicsDevice.Viewport.Height;
+                return new Rectangle(panelX, panelY, _thumbnailPanelWidth, panelHeight);
+            }
+        }
+
+        public void ScrollThumbnails(int direction)
+        {
+            int verticalStep = _thumbnailSize + _thumbnailSpacing;
+            int visibleThumbnails = (int)Math.Ceiling((float)_spriteBatch.GraphicsDevice.Viewport.Height / verticalStep);
+            int maxOffset = Math.Max(0, _sortedTextures.Count - visibleThumbnails);
+            _thumbnailScrollOffset = MathHelper.Clamp(_thumbnailScrollOffset + direction, 0, maxOffset);
         }
 
         public Texture2D CreateTexture2D(int width, int height)
@@ -124,6 +148,15 @@ namespace IsometricMapViewer.Rendering
         public void Dispose()
         {
             _highlightTexture.Dispose();
+        }
+
+        private RenderTarget2D RenderMapToTexture(bool drawTiles, bool drawObjects)
+        {
+            int mapWidth = _map.Width * Constants.TileWidth;
+            int mapHeight = _map.Height * Constants.TileHeight;
+            RenderTarget2D renderTarget = new(_spriteBatch.GraphicsDevice, mapWidth, mapHeight);
+            RenderMap(Matrix.Identity, null, drawTiles, drawObjects, renderTarget);
+            return renderTarget;
         }
 
         private void RenderMap(Matrix? transform, Rectangle? bounds, bool drawTiles,

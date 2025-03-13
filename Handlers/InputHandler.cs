@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using IsometricMapViewer.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -52,7 +53,8 @@ namespace IsometricMapViewer.Handlers
             var keyboardState = Keyboard.GetState();
 
             HandleMouseDragging(mouseState);
-            HandleZoom(mouseState);
+            HandleMouseZoom(mouseState);
+            HandleMouseThumbnailScroll(mouseState);
             HandleKeyboardZoom(keyboardState);
             HandleKeyboardMovement(keyboardState);
             HandleApplicationClose(keyboardState);
@@ -113,15 +115,38 @@ namespace IsometricMapViewer.Handlers
             }
         }
 
-        private void HandleZoom(MouseState mouseState)
+        private void HandleMouseZoom(MouseState mouseState)
         {
+            if (_game.Renderer != null && _game.Renderer.ShowThumbnails &&
+                _game.ThumbnailPanelBounds.Contains(mouseState.Position))
+            {
+                return;
+            }
+
             int scrollDelta = mouseState.ScrollWheelValue - _previousMouseState.ScrollWheelValue;
+
             if (scrollDelta != 0)
             {
                 float zoomFactor = scrollDelta > 0 ? 1.1f : 0.9f;
-                float newZoom = _camera.Zoom * zoomFactor;
-                _camera.ZoomAt(newZoom / _camera.Zoom, mouseState.Position.ToVector2());
+                _camera.ZoomAt(zoomFactor, mouseState.Position.ToVector2());
             }
+        }
+
+
+        private void HandleMouseThumbnailScroll(MouseState mouseState)
+        {
+            if (_game.Renderer == null || !_game.Renderer.ShowThumbnails)
+                return;
+
+            if (!_game.ThumbnailPanelBounds.Contains(mouseState.Position))
+                return;
+
+            int scrollDelta = mouseState.ScrollWheelValue - _previousMouseState.ScrollWheelValue;
+
+            if (scrollDelta == 0)
+                return;
+
+            _game.ScrollThumbnails(-Math.Sign(scrollDelta));
         }
 
         private void HandleKeyboardZoom(KeyboardState keyboardState)
