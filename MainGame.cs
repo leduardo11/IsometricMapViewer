@@ -89,11 +89,29 @@ namespace IsometricMapViewer
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.Transparent);
-            _renderer.DrawMap(_camera);
-            _renderer.DrawGrid(_camera);
-            _renderer.DrawTileHighlight(_camera, _hoveredTile);
-            _renderer.DrawDebugOverlay(_camera, _hoveredTile, _mouseWorldPos);
-            _renderer.DrawThumbnails();
+            // Game World Batch: Draw map, grid, and tile highlight with camera transform
+            _spriteBatch.Begin(
+                SpriteSortMode.Deferred,
+                BlendState.AlphaBlend,
+                SamplerState.PointClamp,
+                null, null, null,
+                _camera.TransformMatrix
+            );
+            _renderer.DrawMap(_spriteBatch, _camera);
+            _renderer.DrawGrid(_spriteBatch, _camera);
+            _renderer.DrawTileHighlight(_spriteBatch, _camera, _hoveredTile);
+            _spriteBatch.End();
+
+            // UI Batch: Draw debug overlay and thumbnails without transform
+            _spriteBatch.Begin(
+                SpriteSortMode.Deferred,
+                BlendState.AlphaBlend,
+                SamplerState.PointClamp
+            );
+            _renderer.DrawDebugOverlay(_spriteBatch, _camera, _hoveredTile, _mouseWorldPos);
+            _renderer.DrawThumbnails(_spriteBatch);
+            _spriteBatch.End();
+
             base.Draw(gameTime);
         }
 

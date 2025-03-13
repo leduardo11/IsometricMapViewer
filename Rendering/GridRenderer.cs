@@ -10,44 +10,38 @@ namespace IsometricMapViewer.Rendering
         private readonly Map _map = map;
         private readonly Texture2D _highlightTexture = highlightTexture;
 
-        public void Draw(CameraHandler camera, bool showGridLines, bool showTileProperties)
+        public void Draw(SpriteBatch spriteBatch, CameraHandler camera, bool showGridLines, bool showTileProperties)
         {
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, null, camera.TransformMatrix);
-
             if (showGridLines)
             {
-                DrawGridLines();
+                DrawGridLines(spriteBatch);
             }
-
+            
             if (showTileProperties)
             {
-                DrawTileProperties(camera);
+                DrawTileProperties(spriteBatch, camera);
             }
-
-            _spriteBatch.End();
         }
 
-        private void DrawGridLines()
+        private void DrawGridLines(SpriteBatch spriteBatch)
         {
             float mapWidth = _map.Width * Constants.TileWidth;
             float mapHeight = _map.Height * Constants.TileHeight;
-
             for (int x = 0; x <= _map.Width; x++)
             {
                 int posX = x * Constants.TileWidth;
                 Rectangle verticalLine = new Rectangle(posX, 0, 1, (int)mapHeight);
-                _spriteBatch.Draw(_highlightTexture, verticalLine, Color.Black);
+                spriteBatch.Draw(_highlightTexture, verticalLine, Color.Black);
             }
-
             for (int y = 0; y <= _map.Height; y++)
             {
                 int posY = y * Constants.TileHeight;
                 Rectangle horizontalLine = new Rectangle(0, posY, (int)mapWidth, 1);
-                _spriteBatch.Draw(_highlightTexture, horizontalLine, Color.Black);
+                spriteBatch.Draw(_highlightTexture, horizontalLine, Color.Black);
             }
         }
 
-        private void DrawTileProperties(CameraHandler camera)
+        private void DrawTileProperties(SpriteBatch spriteBatch, CameraHandler camera)
         {
             Rectangle viewBounds = camera.GetViewBounds();
             var visibleTiles = _map.GetVisibleTiles(viewBounds);
@@ -55,23 +49,23 @@ namespace IsometricMapViewer.Rendering
             foreach (var tile in visibleTiles)
             {
                 Vector2 pos = ToScreenCoordinates(tile.X, tile.Y);
-                if (tile.IsTeleport) DrawTileOutline(pos, Color.Blue);
-                if (!tile.IsMoveAllowed) DrawTileOutline(pos, Color.Red);
-                if (tile.IsFarmingAllowed) DrawTileOutline(pos, Color.Green);
-                if (tile.IsWater) DrawTileOutline(pos, Color.Cyan);
+                if (tile.IsTeleport) DrawTileOutline(spriteBatch, pos, Color.Blue);
+                if (!tile.IsMoveAllowed) DrawTileOutline(spriteBatch, pos, Color.Red);
+                if (tile.IsFarmingAllowed) DrawTileOutline(spriteBatch, pos, Color.Green);
+                if (tile.IsWater) DrawTileOutline(spriteBatch, pos, Color.Cyan);
             }
         }
 
-        private void DrawTileOutline(Vector2 position, Color color)
+        private void DrawTileOutline(SpriteBatch spriteBatch, Vector2 position, Color color)
         {
             int tileWidth = Constants.TileWidth;
             int tileHeight = Constants.TileHeight;
             Rectangle rect = new Rectangle((int)position.X, (int)position.Y, tileWidth, tileHeight);
             int thickness = 2;
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y + rect.Height - thickness, rect.Width, thickness), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X + rect.Width - thickness, rect.Y, thickness, rect.Height), color);
+            spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
+            spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y + rect.Height - thickness, rect.Width, thickness), color);
+            spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
+            spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X + rect.Width - thickness, rect.Y, thickness, rect.Height), color);
         }
 
         private static Vector2 ToScreenCoordinates(int tileX, int tileY)

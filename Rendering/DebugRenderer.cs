@@ -21,64 +21,56 @@ namespace IsometricMapViewer.Rendering
             _debugHighlightTexture.SetData(new[] { Color.White });
         }
 
-        public void Draw(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
+        public void Draw(SpriteBatch spriteBatch, CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
         {
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-
-            // Draw debug info
             string debugText = hoveredTile != null
                 ? $"Hovered Tile: (X: {hoveredTile.X}, Y: {hoveredTile.Y})\n" +
                   $"Tile Sprite: {hoveredTile.TileSprite}\n" +
                   $"Object Sprite: {hoveredTile.ObjectSprite}\n"
                 : "No tile hovered\n";
-            _spriteBatch.DrawString(_font, debugText, new Vector2(10, 10), Color.White);
+            spriteBatch.DrawString(_font, debugText, new Vector2(10, 10), Color.White);
 
-            // Draw hotkeys or help text
             float maxTextWidth = ShowHotkeys
                 ? Constants.Hotkeys.Max(h => _font.MeasureString($"{h.KeyCombo}: {h.Description}").X) + 10
                 : _font.MeasureString("Press F1 for Help").X + 10;
-            float startX = _spriteBatch.GraphicsDevice.Viewport.Width - maxTextWidth;
+            float startX = spriteBatch.GraphicsDevice.Viewport.Width - maxTextWidth;
 
             if (ShowHotkeys)
             {
                 float hotkeyY = 10;
-                _spriteBatch.DrawString(_font, "Hotkeys:", new Vector2(startX, hotkeyY), Color.Yellow);
+                spriteBatch.DrawString(_font, "Hotkeys:", new Vector2(startX, hotkeyY), Color.Yellow);
                 hotkeyY += _font.LineSpacing;
+                
                 foreach (var (keyCombo, description) in Constants.Hotkeys)
                 {
-                    _spriteBatch.DrawString(_font, $"{keyCombo}: {description}", new Vector2(startX, hotkeyY), Color.White);
+                    spriteBatch.DrawString(_font, $"{keyCombo}: {description}", new Vector2(startX, hotkeyY), Color.White);
                     hotkeyY += _font.LineSpacing;
                 }
             }
             else
             {
-                _spriteBatch.DrawString(_font, "Press F1 for Help", new Vector2(startX, 10), Color.Yellow);
+                spriteBatch.DrawString(_font, "Press F1 for Help", new Vector2(startX, 10), Color.Yellow);
             }
 
-            // Draw property legends for hovered tile
             if (hoveredTile != null)
             {
                 float legendX = 10;
-                float legendY = _spriteBatch.GraphicsDevice.Viewport.Height - 100;
+                float legendY = spriteBatch.GraphicsDevice.Viewport.Height - 100;
                 float squareSize = 10;
                 float spacing = 5;
-
-                // Use helper method to draw each property
-                legendY = DrawPropertyLegend("Blocked", Color.Red, !hoveredTile.IsMoveAllowed, legendX, legendY, squareSize, spacing);
-                legendY = DrawPropertyLegend("Farmable", Color.Green, hoveredTile.IsFarmingAllowed, legendX, legendY, squareSize, spacing);
-                legendY = DrawPropertyLegend("Water", Color.Cyan, hoveredTile.IsWater, legendX, legendY, squareSize, spacing);
-                legendY = DrawPropertyLegend("Teleport", Color.Blue, hoveredTile.IsTeleport, legendX, legendY, squareSize, spacing);
+                legendY = DrawPropertyLegend(spriteBatch, "Blocked", Color.Red, !hoveredTile.IsMoveAllowed, legendX, legendY, squareSize, spacing);
+                legendY = DrawPropertyLegend(spriteBatch, "Farmable", Color.Green, hoveredTile.IsFarmingAllowed, legendX, legendY, squareSize, spacing);
+                legendY = DrawPropertyLegend(spriteBatch, "Water", Color.Cyan, hoveredTile.IsWater, legendX, legendY, squareSize, spacing);
+                DrawPropertyLegend(spriteBatch, "Teleport", Color.Blue, hoveredTile.IsTeleport, legendX, legendY, squareSize, spacing);
             }
-
-            _spriteBatch.End();
         }
 
-        private float DrawPropertyLegend(string propertyName, Color color, bool condition, float x, float y, float squareSize, float spacing)
+        private float DrawPropertyLegend(SpriteBatch spriteBatch, string propertyName, Color color, bool condition, float x, float y, float squareSize, float spacing)
         {
             if (condition)
             {
-                _spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)x, (int)y, (int)squareSize, (int)squareSize), color);
-                _spriteBatch.DrawString(_font, propertyName, new Vector2(x + squareSize + spacing, y), Color.White);
+                spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)x, (int)y, (int)squareSize, (int)squareSize), color);
+                spriteBatch.DrawString(_font, propertyName, new Vector2(x + squareSize + spacing, y), Color.White);
                 y += squareSize + spacing;
             }
             return y;
