@@ -36,6 +36,11 @@ namespace IsometricMapViewer.Loaders
             }
         }
 
+        public Dictionary<int, Texture2D> GetAllTextures()
+        {
+            return new Dictionary<int, Texture2D>(_spriteTextures);
+        }
+
         public Constants.SpriteFrame GetSpriteFrame(int spriteId, int frameIndex)
         {
             foreach (var spriteFile in _spriteFiles.Values)

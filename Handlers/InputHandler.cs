@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using IsometricMapViewer.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -41,8 +40,9 @@ namespace IsometricMapViewer.Handlers
 
             _directHotkeys = new Dictionary<Keys, Action>
             {
-                { Keys.G, ToggleGrid },
-                { Keys.O, ToggleObjects }
+                { Keys.G, ()=> _game.ToggleGrid() },
+                { Keys.O, ()=> _game.ToggleObjects() },
+                { Keys.H, () => _game.ToggleThumbnails() },
             };
         }
 
@@ -186,6 +186,7 @@ namespace IsometricMapViewer.Handlers
         private void ToggleTileProperty(Func<MapTile, (bool, bool, bool, bool)> getNewProperties)
         {
             var hoveredTile = _game.HoveredTile;
+
             if (hoveredTile != null)
             {
                 var (newMoveAllowed, newTeleport, newFarmingAllowed, newWater) = getNewProperties(hoveredTile);
@@ -197,16 +198,6 @@ namespace IsometricMapViewer.Handlers
                     newWater
                 );
             }
-        }
-
-        private void ToggleGrid()
-        {
-            _game.ToggleGrid();
-        }
-
-        private void ToggleObjects()
-        {
-            _game.ToggleObjects();
         }
     }
 }

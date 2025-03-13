@@ -69,8 +69,8 @@ namespace IsometricMapViewer
         protected override void LoadContent()
         {
             var font = Content.Load<SpriteFont>("Default");
-            var spriteLoader = new SpriteLoader(GraphicsDevice); 
-            spriteLoader.LoadSprites(); 
+            var spriteLoader = new SpriteLoader(GraphicsDevice);
+            spriteLoader.LoadSprites();
             _renderer = new GameRenderer(_spriteBatch, font, GraphicsDevice, _map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }
@@ -91,27 +91,8 @@ namespace IsometricMapViewer
             _renderer.DrawGrid(_camera);
             _renderer.DrawTileHighlight(_camera, _hoveredTile);
             _renderer.DrawDebugOverlay(_camera, _hoveredTile, _mouseWorldPos);
+            _renderer.DrawThumbnails();
             base.Draw(gameTime);
-        }
-
-        public void ToggleGrid()
-        {
-            _renderer.ShowGrid = !_renderer.ShowGrid;
-        }
-
-        public void ToggleObjects()
-        {
-            _renderer.ShowObjects = !_renderer.ShowObjects;
-        }
-
-        public void ToggleFullscreen()
-        {
-            _graphics.ToggleFullScreen();
-        }
-
-        public void ToggleHotkeysDisplay()
-        {
-            _renderer.ShowHotkeys = !_renderer.ShowHotkeys;
         }
 
         private static string GetFirstMapFilePath()
@@ -154,6 +135,31 @@ namespace IsometricMapViewer
             {
                 ConsoleLogger.LogWarning("No map path to save to.");
             }
+        }
+
+        public void ToggleGrid()
+        {
+            _renderer.ShowGrid = !_renderer.ShowGrid;
+        }
+
+        public void ToggleObjects()
+        {
+            _renderer.ShowObjects = !_renderer.ShowObjects;
+        }
+
+        public void ToggleThumbnails()
+        {
+            _renderer.ShowThumbnails = !_renderer.ShowThumbnails;
+        }
+
+        public void ToggleFullscreen()
+        {
+            _graphics.ToggleFullScreen();
+        }
+
+        public void ToggleHotkeysDisplay()
+        {
+            _renderer.ShowHotkeys = !_renderer.ShowHotkeys;
         }
 
         public void ExportMapToPng()

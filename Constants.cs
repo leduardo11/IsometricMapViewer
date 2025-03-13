@@ -10,18 +10,12 @@ namespace IsometricMapViewer
         public const int TileHeight = 32;
         public const int ExpectedTileSize = 10;
         public const int HeaderBufferSize = 256;
-
-        // Default camera zoom level to show the entire 250x250 map in the 1280x720 viewport (eagle view)
         public const float DefaultCameraZoom = 0.14f;
-
-        // Minimum and maximum zoom levels for camera control, allowing scaling for visibility
-        public const float MinCameraZoom = 0.01f; // Allow even further zoom out for eagle view
-        public const float MaxCameraZoom = 2.0f; // Keep max zoom for finer control if needed
-
-        // Camera movement speed, scaled by tile width for consistent movement
+        public const float MinCameraZoom = 0.01f;
+        public const float MaxCameraZoom = 2.0f;
         public const float BaseCameraSpeed = 10.0f;
+        public static (string KeyCombo, string Description)[] Hotkeys => hotkeys;
 
-        // Structure for sprite frame data in sprite files
         public struct SpriteFrame
         {
             public int Left;
@@ -71,6 +65,7 @@ namespace IsometricMapViewer
          ("Ctrl + W", "Toggle Water"),
          ("G", "Toggle Grid"),
          ("O", "Toggle Objects"),
+         ("H", "Toggle Sprites"),
          ("W/A/S/D or Arrows", "Move Camera"),
          ("+ / -", "Zoom In/Out"),
          ("Escape", "Exit Application"),
@@ -120,7 +115,5 @@ namespace IsometricMapViewer
          ("treeshadows.spr", 150, 46),
          ("trees1.spr", 100, 46),
         ];
-
-        public static (string KeyCombo, string Description)[] Hotkeys => hotkeys;
     }
 }

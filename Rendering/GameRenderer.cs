@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using IsometricMapViewer.Handlers;
 using IsometricMapViewer.Loaders;
 using Microsoft.Xna.Framework;
@@ -18,6 +19,7 @@ namespace IsometricMapViewer.Rendering
         public bool ShowGrid { get; set; } = false;
         public bool ShowHotkeys { get; set; } = false;
         public bool ShowObjects { get; set; } = true;
+        public bool ShowThumbnails { get; set; } = false;
 
         public GameRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice, Map map, SpriteLoader spriteLoader)
         {
@@ -58,6 +60,41 @@ namespace IsometricMapViewer.Rendering
             using var debugRenderer = new DebugRenderer(_spriteBatch, _font, _spriteBatch.GraphicsDevice);
             debugRenderer.ShowHotkeys = this.ShowHotkeys;
             debugRenderer.Draw(camera, hoveredTile, mouseWorldPos);
+        }
+
+        public void DrawThumbnails()
+        {
+            if (!ShowThumbnails) return;
+
+            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+
+            var textures = _spriteLoader.GetAllTextures();
+            int x = 10;
+            int y = 10;
+            int maxWidth = 64;
+            int maxHeight = 64;
+            int spacing = 10;
+            int itemsPerRow = (_spriteBatch.GraphicsDevice.Viewport.Width - 20) / (maxWidth + spacing);
+            int index = 0;
+
+            foreach (var kvp in textures.OrderBy(k => k.Key))
+            {
+                int spriteId = kvp.Key;
+                Texture2D texture = kvp.Value;
+                int row = index / itemsPerRow;
+                int col = index % itemsPerRow;
+                Vector2 position = new Vector2(x + col * (maxWidth + spacing), y + row * (maxHeight + spacing + _font.LineSpacing));
+                // Scale texture to fit thumbnail size while preserving aspect ratio
+                float scale = Math.Min((float)maxWidth / texture.Width, (float)maxHeight / texture.Height);
+                Rectangle destRect = new((int)position.X, (int)position.Y, (int)(texture.Width * scale), (int)(texture.Height * scale));
+                _spriteBatch.Draw(texture, destRect, Color.White);
+                // Draw sprite ID below the thumbnail
+                string idText = $"ID: {spriteId}";
+                Vector2 textPosition = new Vector2(position.X, position.Y + destRect.Height + spacing);
+                _spriteBatch.DrawString(_font, idText, textPosition, Color.White);
+                index++;
+            }
+            _spriteBatch.End();
         }
 
         public Texture2D RenderFullMapToTexture()
