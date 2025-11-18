@@ -1,2 +1,4 @@
-﻿using var game = new IsometricMapViewer.MainGame();
-game.Run();
+﻿using static Raylib_cs.Raylib;
+using Raylib_cs;
+
+

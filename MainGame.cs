@@ -2,9 +2,6 @@
 using IsometricMapViewer.Handlers;
 using IsometricMapViewer.Loaders;
 using IsometricMapViewer.Rendering;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 
 namespace IsometricMapViewer
 {

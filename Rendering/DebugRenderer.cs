@@ -1,8 +1,6 @@
 using System;
 using System.Linq;
 using IsometricMapViewer.Handlers;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace IsometricMapViewer.Rendering
 {

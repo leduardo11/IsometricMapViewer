@@ -1,9 +1,5 @@
 using System;
 using System.Collections.Generic;
-using IsometricMapViewer.Rendering;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 
 namespace IsometricMapViewer.Handlers
 {
