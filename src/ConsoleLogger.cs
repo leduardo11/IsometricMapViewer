@@ -1,6 +1,6 @@
 using System;
 
-namespace IsometricMapViewer
+namespace IsometricMapViewer.src
 {
     public static class ConsoleLogger
     {

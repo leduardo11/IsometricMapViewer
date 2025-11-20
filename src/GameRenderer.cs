@@ -1,8 +1,6 @@
 using System;
-using IsometricMapViewer.Handlers;
-using IsometricMapViewer.Loaders;
 
-namespace IsometricMapViewer.Rendering
+namespace IsometricMapViewer.src
 {
     public class GameRenderer : IDisposable
     {

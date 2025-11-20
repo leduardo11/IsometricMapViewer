@@ -1,9 +1,7 @@
 ﻿using System.IO;
-using IsometricMapViewer.Handlers;
 using IsometricMapViewer.Loaders;
-using IsometricMapViewer.Rendering;
 
-namespace IsometricMapViewer
+namespace IsometricMapViewer.src
 {
     public class MainGame : Game
     {
@@ -66,8 +64,8 @@ namespace IsometricMapViewer
         protected override void LoadContent()
         {
             var font = Content.Load<SpriteFont>("Default");
-            var spriteLoader = new SpriteLoader(GraphicsDevice); 
-            spriteLoader.LoadSprites(); 
+            var spriteLoader = new SpriteLoader(GraphicsDevice);
+            spriteLoader.LoadSprites();
             _renderer = new GameRenderer(_spriteBatch, font, GraphicsDevice, _map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }

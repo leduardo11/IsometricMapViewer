@@ -1,6 +1,6 @@
 using System;
 
-namespace IsometricMapViewer.Handlers
+namespace IsometricMapViewer.src
 {
     public class CameraHandler
     {
@@ -69,11 +69,11 @@ namespace IsometricMapViewer.Handlers
         public void ZoomAt(float zoomFactor, Vector2 screenPosition)
         {
             var worldBefore = ScreenToWorld(screenPosition);
-            Zoom *= zoomFactor; 
-            var worldAfter = ScreenToWorld(screenPosition); 
-            _position += worldBefore - worldAfter;      
-            ClampPosition();                             
-            UpdateTransformMatrix();                        
+            Zoom *= zoomFactor;
+            var worldAfter = ScreenToWorld(screenPosition);
+            _position += worldBefore - worldAfter;
+            ClampPosition();
+            UpdateTransformMatrix();
         }
 
         public void FocusOnPoint(Vector2 worldPosition)

@@ -1,9 +1,8 @@
 using System;
 using System.IO;
 using System.Xml;
-using IsometricMapViewer.Rendering;
 
-namespace IsometricMapViewer
+namespace IsometricMapViewer.src
 {
     public class MapExporter(GameRenderer gameRenderer, Map map) : IDisposable
     {

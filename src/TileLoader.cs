@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using IsometricMapViewer.Handlers;
 
-namespace IsometricMapViewer.Loaders
+namespace IsometricMapViewer.src
 {
     public class TileLoader
     {

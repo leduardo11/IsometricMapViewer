@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace IsometricMapViewer
+namespace IsometricMapViewer.src
 {
     public class Map
     {

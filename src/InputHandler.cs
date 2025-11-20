@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace IsometricMapViewer.Handlers
+namespace IsometricMapViewer.src
 {
     public class InputHandler
     {

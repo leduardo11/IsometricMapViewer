@@ -3,7 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace IsometricMapViewer
+namespace IsometricMapViewer.src
 {
     public class SpriteFile(GraphicsDevice graphicsDevice) : IDisposable
     {

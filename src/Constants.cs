@@ -1,5 +1,4 @@
-
-namespace IsometricMapViewer
+namespace IsometricMapViewer.src
 {
     public static class Constants
     {

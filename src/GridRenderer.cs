@@ -1,6 +1,4 @@
-using IsometricMapViewer.Handlers;
-
-namespace IsometricMapViewer.Rendering
+namespace IsometricMapViewer.src
 {
     public class GridRenderer(SpriteBatch spriteBatch, Map map, Texture2D highlightTexture)
     {

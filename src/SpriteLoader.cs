@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace IsometricMapViewer.Loaders
+namespace IsometricMapViewer.src
 {
     public class SpriteLoader(GraphicsDevice graphicsDevice) : IDisposable
     {
