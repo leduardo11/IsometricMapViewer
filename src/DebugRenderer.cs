@@ -1,81 +1,71 @@
 using System;
 using System.Linq;
+using System.Numerics;
+using IsometricMapViewer.src;
+using Raylib_cs;
 
-namespace IsometricMapViewer.src
+namespace IsometricMapViewer
 {
     public class DebugRenderer : IDisposable
     {
-        private readonly SpriteBatch _spriteBatch;
-        private readonly SpriteFont _font;
-        private readonly Texture2D _debugHighlightTexture;
         public bool ShowHotkeys { get; set; } = false;
-
-        public DebugRenderer(SpriteBatch spriteBatch, SpriteFont font, GraphicsDevice graphicsDevice)
-        {
-            _spriteBatch = spriteBatch;
-            _font = font;
-            _debugHighlightTexture = new Texture2D(graphicsDevice, 1, 1);
-            _debugHighlightTexture.SetData(new[] { Color.White });
-        }
+        private readonly int fontSize = 18;
+        private readonly int lineSpacing = 22;
 
         public void Draw(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
         {
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-
             // Draw debug info
             string debugText = hoveredTile != null
                 ? $"Hovered Tile: (X: {hoveredTile.X}, Y: {hoveredTile.Y})\n" +
                   $"Tile Sprite: {hoveredTile.TileSprite}\n" +
                   $"Object Sprite: {hoveredTile.ObjectSprite}\n"
                 : "No tile hovered\n";
-            _spriteBatch.DrawString(_font, debugText, new Vector2(10, 10), Color.White);
+            Raylib.DrawText(debugText, 10, 10, fontSize, Color.White);
 
             // Draw hotkeys or help text
-            float maxTextWidth = ShowHotkeys
-                ? Constants.Hotkeys.Max(h => _font.MeasureString($"{h.KeyCombo}: {h.Description}").X) + 10
-                : _font.MeasureString("Press F1 for Help").X + 10;
-            float startX = _spriteBatch.GraphicsDevice.Viewport.Width - maxTextWidth;
+            int screenWidth = Raylib.GetScreenWidth();
+            int maxTextWidth = ShowHotkeys
+                ? Constants.Hotkeys.Max(h => Raylib.MeasureText($"{h.KeyCombo}: {h.Description}", fontSize)) + 10
+                : Raylib.MeasureText("Press F1 for Help", fontSize) + 10;
+            int startX = screenWidth - maxTextWidth;
 
             if (ShowHotkeys)
             {
-                float hotkeyY = 10;
-                _spriteBatch.DrawString(_font, "Hotkeys:", new Vector2(startX, hotkeyY), Color.Yellow);
-                hotkeyY += _font.LineSpacing;
+                int hotkeyY = 10;
+                Raylib.DrawText("Hotkeys:", startX, hotkeyY, fontSize, Color.Yellow);
+                hotkeyY += lineSpacing;
                 foreach (var (keyCombo, description) in Constants.Hotkeys)
                 {
-                    _spriteBatch.DrawString(_font, $"{keyCombo}: {description}", new Vector2(startX, hotkeyY), Color.White);
-                    hotkeyY += _font.LineSpacing;
+                    Raylib.DrawText($"{keyCombo}: {description}", startX, hotkeyY, fontSize, Color.White);
+                    hotkeyY += lineSpacing;
                 }
             }
             else
             {
-                _spriteBatch.DrawString(_font, "Press F1 for Help", new Vector2(startX, 10), Color.Yellow);
+                Raylib.DrawText("Press F1 for Help", startX, 10, fontSize, Color.Yellow);
             }
 
             // Draw property legends for hovered tile
             if (hoveredTile != null)
             {
-                float legendX = 10;
-                float legendY = _spriteBatch.GraphicsDevice.Viewport.Height - 100;
-                float squareSize = 10;
-                float spacing = 5;
+                int legendX = 10;
+                int legendY = Raylib.GetScreenHeight() - 100;
+                int squareSize = 16;
+                int spacing = 6;
 
-                // Use helper method to draw each property
                 legendY = DrawPropertyLegend("Blocked", Color.Red, !hoveredTile.IsMoveAllowed, legendX, legendY, squareSize, spacing);
                 legendY = DrawPropertyLegend("Farmable", Color.Green, hoveredTile.IsFarmingAllowed, legendX, legendY, squareSize, spacing);
-                legendY = DrawPropertyLegend("Water", Color.Cyan, hoveredTile.IsWater, legendX, legendY, squareSize, spacing);
+                legendY = DrawPropertyLegend("Water", Color.Pink, hoveredTile.IsWater, legendX, legendY, squareSize, spacing);
                 legendY = DrawPropertyLegend("Teleport", Color.Blue, hoveredTile.IsTeleport, legendX, legendY, squareSize, spacing);
             }
-
-            _spriteBatch.End();
         }
 
-        private float DrawPropertyLegend(string propertyName, Color color, bool condition, float x, float y, float squareSize, float spacing)
+        private int DrawPropertyLegend(string propertyName, Color color, bool condition, int x, int y, int squareSize, int spacing)
         {
             if (condition)
             {
-                _spriteBatch.Draw(_debugHighlightTexture, new Rectangle((int)x, (int)y, (int)squareSize, (int)squareSize), color);
-                _spriteBatch.DrawString(_font, propertyName, new Vector2(x + squareSize + spacing, y), Color.White);
+                Raylib.DrawRectangle(x, y, squareSize, squareSize, color);
+                Raylib.DrawText(propertyName, x + squareSize + spacing, y, fontSize, Color.White);
                 y += squareSize + spacing;
             }
             return y;
@@ -83,7 +73,7 @@ namespace IsometricMapViewer.src
 
         public void Dispose()
         {
-            _debugHighlightTexture.Dispose();
+            // Nothing to dispose in Raylib for this renderer
         }
     }
 }

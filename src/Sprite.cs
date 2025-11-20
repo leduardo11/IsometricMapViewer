@@ -2,13 +2,13 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using Raylib_cs;
 
-namespace IsometricMapViewer.src
+namespace IsometricMapViewer
 {
-    public class SpriteFile(GraphicsDevice graphicsDevice) : IDisposable
+    public class SpriteFile : IDisposable
     {
-        private readonly GraphicsDevice _graphicsDevice = graphicsDevice;
-        private readonly List<Sprite> _sprites = [];
+        private readonly List<Sprite> _sprites = new();
 
         public void Load(string filePath, int startIndex = 0)
         {
@@ -63,14 +63,16 @@ namespace IsometricMapViewer.src
                 try
                 {
                     using MemoryStream stream = new(_sprites[i].ImageData);
-                    _sprites[i].Texture = Texture2D.FromStream(_graphicsDevice, stream);
+                    Image img = Raylib.LoadImageFromMemory(".png", _sprites[i].ImageData, _sprites[i].ImageLength);
+                    _sprites[i].Texture = Raylib.LoadTextureFromImage(img);
+                    Raylib.UnloadImage(img);
                 }
                 catch (Exception ex)
                 {
-                    _sprites[i].Texture = new Texture2D(_graphicsDevice, 32, 32);
-                    Color[] data = new Color[32 * 32];
-                    Array.Fill(data, Color.Magenta);
-                    _sprites[i].Texture.SetData(data);
+                    // Fallback: 32x32 magenta texture
+                    Image fallbackImg = Raylib.GenImageColor(32, 32, Color.Magenta);
+                    _sprites[i].Texture = Raylib.LoadTextureFromImage(fallbackImg);
+                    Raylib.UnloadImage(fallbackImg);
                     ConsoleLogger.LogError($"Failed to load texture for sprite {_sprites[i].Index}: {ex.Message}");
                 }
             }
@@ -83,7 +85,8 @@ namespace IsometricMapViewer.src
         {
             foreach (Sprite sprite in _sprites)
             {
-                sprite.Texture?.Dispose();
+                if (sprite.Texture.Id != 0)
+                    Raylib.UnloadTexture(sprite.Texture);
             }
         }
     }

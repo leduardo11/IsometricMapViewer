@@ -1,102 +1,77 @@
 using System;
-using System.Collections.Generic;
+using System.Numerics;
+using IsometricMapViewer.src;
+using Raylib_cs;
 
-namespace IsometricMapViewer.src
+namespace IsometricMapViewer
 {
     public class InputHandler
     {
         private readonly CameraHandler _camera;
-        private readonly Viewport _viewport;
         private readonly MainGame _game;
-        private MouseState _previousMouseState;
-        private KeyboardState _previousKeyboardState;
         private Vector2 _dragStartPosition;
         private bool _isDragging;
-        private readonly Dictionary<Keys, Action> _ctrlHotkeys;
-        private readonly Dictionary<Keys, Action> _directHotkeys;
+        private bool _prevF1;
+        private bool _prevEnter;
+        private bool _prevCtrl;
+        private bool _prevG;
+        private bool _prevO;
 
-        public InputHandler(CameraHandler camera, GraphicsDevice graphicsDevice, Game game)
+        public InputHandler(CameraHandler camera, MainGame game)
         {
             _camera = camera;
-            _viewport = graphicsDevice.Viewport;
-            _game = game as MainGame ?? throw new ArgumentException("Game must be of type MainGame", nameof(game));
-            _previousMouseState = Mouse.GetState();
-            _previousKeyboardState = Keyboard.GetState();
-
-            _ctrlHotkeys = new Dictionary<Keys, Action>
-            {
-                { Keys.P, () => _game.ExportMapToPng() },
-                { Keys.T, () => _game.ExportMapToTsx() },
-                { Keys.O, () => _game.ExportObjectsToPng() },
-                { Keys.S, () => _game.SaveMap() },
-                { Keys.M, () => ToggleTileProperty(t => (!t.IsMoveAllowed, t.IsTeleport, t.IsFarmingAllowed, t.IsWater)) },
-                { Keys.E, () => ToggleTileProperty(t => (t.IsMoveAllowed, !t.IsTeleport, t.IsFarmingAllowed, t.IsWater)) },
-                { Keys.F, () => ToggleTileProperty(t => (t.IsMoveAllowed, t.IsTeleport, !t.IsFarmingAllowed, t.IsWater)) },
-                { Keys.W, () => ToggleTileProperty(t => (t.IsMoveAllowed, t.IsTeleport, t.IsFarmingAllowed, !t.IsWater)) }
-            };
-
-            _directHotkeys = new Dictionary<Keys, Action>
-            {
-                { Keys.G, ToggleGrid },
-                { Keys.O, ToggleObjects }
-            };
+            _game = game ?? throw new ArgumentException("Game must be of type MainGame", nameof(game));
         }
 
-        public void Update(GameTime gameTime)
+        public void Update()
         {
-            var mouseState = Mouse.GetState();
-            var keyboardState = Keyboard.GetState();
-
-            HandleMouseDragging(mouseState);
-            HandleZoom(mouseState);
-            HandleKeyboardZoom(keyboardState);
-            HandleKeyboardMovement(keyboardState);
-            HandleApplicationClose(keyboardState);
-            HandleHotkeys(keyboardState);
-            HandleScreenResolutionToggle(keyboardState);
-            HandleShowHotkeyToggle(keyboardState);
-
-            _previousMouseState = mouseState;
-            _previousKeyboardState = keyboardState;
+            HandleMouseDragging();
+            HandleZoom();
+            HandleKeyboardZoom();
+            HandleKeyboardMovement();
+            HandleApplicationClose();
+            HandleHotkeys();
+            HandleScreenResolutionToggle();
+            HandleShowHotkeyToggle();
         }
 
-        private void HandleHotkeys(KeyboardState keyboardState)
+        private void HandleHotkeys()
         {
-            bool isCtrlDown = keyboardState.IsKeyDown(Keys.LeftControl) || keyboardState.IsKeyDown(Keys.RightControl);
+            bool isCtrlDown = Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.RightControl);
 
+            // Ctrl hotkeys
             if (isCtrlDown)
             {
-                foreach (var kv in _ctrlHotkeys)
-                {
-                    if (keyboardState.IsKeyDown(kv.Key) && !_previousKeyboardState.IsKeyDown(kv.Key))
-                    {
-                        kv.Value.Invoke();
-                    }
-                }
+                if (Raylib.IsKeyPressed(KeyboardKey.P)) _game.ExportMapToPng();
+                if (Raylib.IsKeyPressed(KeyboardKey.T)) _game.ExportMapToTsx();
+                if (Raylib.IsKeyPressed(KeyboardKey.O)) _game.ExportObjectsToPng();
+                if (Raylib.IsKeyPressed(KeyboardKey.S)) _game.SaveMap();
+                if (Raylib.IsKeyPressed(KeyboardKey.M)) ToggleTileProperty(t => (!t.IsMoveAllowed, t.IsTeleport, t.IsFarmingAllowed, t.IsWater));
+                if (Raylib.IsKeyPressed(KeyboardKey.E)) ToggleTileProperty(t => (t.IsMoveAllowed, !t.IsTeleport, t.IsFarmingAllowed, t.IsWater));
+                if (Raylib.IsKeyPressed(KeyboardKey.F)) ToggleTileProperty(t => (t.IsMoveAllowed, t.IsTeleport, !t.IsFarmingAllowed, t.IsWater));
+                if (Raylib.IsKeyPressed(KeyboardKey.W)) ToggleTileProperty(t => (t.IsMoveAllowed, t.IsTeleport, t.IsFarmingAllowed, !t.IsWater));
             }
             else
             {
-                foreach (var kv in _directHotkeys)
-                {
-                    if (keyboardState.IsKeyDown(kv.Key) && !_previousKeyboardState.IsKeyDown(kv.Key))
-                    {
-                        kv.Value.Invoke();
-                    }
-                }
+                if (Raylib.IsKeyPressed(KeyboardKey.G)) _game.ToggleGrid();
+                if (Raylib.IsKeyPressed(KeyboardKey.O)) _game.ToggleObjects();
             }
         }
 
-        private void HandleMouseDragging(MouseState mouseState)
+        private void HandleMouseDragging()
         {
-            Vector2 mousePos = mouseState.Position.ToVector2();
-            if (mouseState.RightButton == ButtonState.Pressed || mouseState.MiddleButton == ButtonState.Pressed)
+            Vector2 mousePos = Raylib.GetMousePosition();
+            bool rightDown = Raylib.IsMouseButtonDown(MouseButton.Right);
+            bool middleDown = Raylib.IsMouseButtonDown(MouseButton.Middle);
+
+            if (rightDown || middleDown)
             {
-                if (!_isDragging && _viewport.Bounds.Contains(mouseState.Position))
+                if (!_isDragging)
                 {
                     _dragStartPosition = mousePos;
                     _isDragging = true;
                 }
-                else if (_isDragging)
+                else
                 {
                     Vector2 delta = mousePos - _dragStartPosition;
                     _camera.Move(delta / _camera.Zoom);
@@ -109,43 +84,40 @@ namespace IsometricMapViewer.src
             }
         }
 
-        private void HandleZoom(MouseState mouseState)
+        private void HandleZoom()
         {
-            int scrollDelta = mouseState.ScrollWheelValue - _previousMouseState.ScrollWheelValue;
-            if (scrollDelta != 0)
+            float wheel = Raylib.GetMouseWheelMove();
+            if (wheel != 0)
             {
-                float zoomFactor = scrollDelta > 0 ? 1.1f : 0.9f;
-                float newZoom = _camera.Zoom * zoomFactor;
-                _camera.ZoomAt(newZoom / _camera.Zoom, mouseState.Position.ToVector2());
+                float zoomFactor = wheel > 0 ? 1.1f : 0.9f;
+                _camera.ZoomAt(zoomFactor, Raylib.GetMousePosition());
             }
         }
 
-        private void HandleKeyboardZoom(KeyboardState keyboardState)
+        private void HandleKeyboardZoom()
         {
-            if ((keyboardState.IsKeyDown(Keys.OemPlus) || keyboardState.IsKeyDown(Keys.Add)) &&
-                !_previousKeyboardState.IsKeyDown(Keys.OemPlus) && !_previousKeyboardState.IsKeyDown(Keys.Add))
+            if (Raylib.IsKeyPressed(KeyboardKey.Equal) || Raylib.IsKeyPressed(KeyboardKey.KpAdd))
             {
-                _camera.ZoomAt(1.1f, new Vector2(_viewport.Width / 2, _viewport.Height / 2));
+                _camera.ZoomAt(1.1f, new Vector2(Raylib.GetScreenWidth() / 2f, Raylib.GetScreenHeight() / 2f));
             }
-            else if ((keyboardState.IsKeyDown(Keys.OemMinus) || keyboardState.IsKeyDown(Keys.Subtract)) &&
-                !_previousKeyboardState.IsKeyDown(Keys.OemMinus) && !_previousKeyboardState.IsKeyDown(Keys.Subtract))
+            else if (Raylib.IsKeyPressed(KeyboardKey.Minus) || Raylib.IsKeyPressed(KeyboardKey.KpSubtract))
             {
-                _camera.ZoomAt(0.9f, new Vector2(_viewport.Width / 2, _viewport.Height / 2));
+                _camera.ZoomAt(0.9f, new Vector2(Raylib.GetScreenWidth() / 2f, Raylib.GetScreenHeight() / 2f));
             }
         }
 
-        private void HandleKeyboardMovement(KeyboardState keyboardState)
+        private void HandleKeyboardMovement()
         {
             Vector2 movement = Vector2.Zero;
             float effectiveSpeed = Constants.BaseCameraSpeed * Constants.TileWidth / 32f / _camera.Zoom;
 
-            if (keyboardState.IsKeyDown(Keys.Left) || keyboardState.IsKeyDown(Keys.A))
+            if (Raylib.IsKeyDown(KeyboardKey.Left) || Raylib.IsKeyDown(KeyboardKey.A))
                 movement.X -= effectiveSpeed;
-            if (keyboardState.IsKeyDown(Keys.Right) || keyboardState.IsKeyDown(Keys.D))
+            if (Raylib.IsKeyDown(KeyboardKey.Right) || Raylib.IsKeyDown(KeyboardKey.D))
                 movement.X += effectiveSpeed;
-            if (keyboardState.IsKeyDown(Keys.Up) || keyboardState.IsKeyDown(Keys.W))
+            if (Raylib.IsKeyDown(KeyboardKey.Up) || Raylib.IsKeyDown(KeyboardKey.W))
                 movement.Y -= effectiveSpeed;
-            if (keyboardState.IsKeyDown(Keys.Down) || keyboardState.IsKeyDown(Keys.S))
+            if (Raylib.IsKeyDown(KeyboardKey.Down) || Raylib.IsKeyDown(KeyboardKey.S))
                 movement.Y += effectiveSpeed;
 
             if (movement != Vector2.Zero)
@@ -154,26 +126,29 @@ namespace IsometricMapViewer.src
             }
         }
 
-        private void HandleApplicationClose(KeyboardState keyboardState)
+        private void HandleApplicationClose()
         {
-            if (keyboardState.IsKeyDown(Keys.Escape))
+            if (Raylib.IsKeyDown(KeyboardKey.Escape))
             {
-                _game.Exit();
+                Raylib.CloseWindow();
             }
         }
 
-        private void HandleScreenResolutionToggle(KeyboardState keyboardState)
+        private void HandleScreenResolutionToggle()
         {
-            if ((keyboardState.IsKeyDown(Keys.LeftAlt) || keyboardState.IsKeyDown(Keys.RightAlt)) &&
-                keyboardState.IsKeyDown(Keys.Enter) && !_previousKeyboardState.IsKeyDown(Keys.Enter))
+            bool altDown = Raylib.IsKeyDown(KeyboardKey.LeftAlt) || Raylib.IsKeyDown(KeyboardKey.RightAlt);
+            bool enterPressed = Raylib.IsKeyPressed(KeyboardKey.Enter);
+
+            if (altDown && enterPressed)
             {
-                _game.ToggleFullscreen();
+                Raylib.ToggleFullscreen();
             }
         }
 
-        private void HandleShowHotkeyToggle(KeyboardState keyboardState)
+        private void HandleShowHotkeyToggle()
         {
-            if (keyboardState.IsKeyDown(Keys.F1) && !_previousKeyboardState.IsKeyDown(Keys.F1))
+            bool f1Pressed = Raylib.IsKeyPressed(KeyboardKey.F1);
+            if (f1Pressed)
             {
                 _game.ToggleHotkeysDisplay();
             }
@@ -193,16 +168,6 @@ namespace IsometricMapViewer.src
                     newWater
                 );
             }
-        }
-
-        private void ToggleGrid()
-        {
-            _game.ToggleGrid();
-        }
-
-        private void ToggleObjects()
-        {
-            _game.ToggleObjects();
         }
     }
 }

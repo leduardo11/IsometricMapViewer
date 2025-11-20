@@ -3,22 +3,22 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Raylib_cs;
+using IsometricMapViewer.src;
 
-namespace IsometricMapViewer.src
+namespace IsometricMapViewer
 {
     public class TileLoader
     {
-        private readonly GraphicsDevice graphicsDevice;
         private readonly Dictionary<string, SpriteFile> spriteSheets = [];
         private readonly Texture2D defaultTexture;
 
-        public TileLoader(GraphicsDevice graphicsDevice)
+        public TileLoader()
         {
-            this.graphicsDevice = graphicsDevice;
-            defaultTexture = new Texture2D(graphicsDevice, 32, 32);
-            Color[] data = new Color[32 * 32];
-            Array.Fill(data, Color.Magenta);
-            defaultTexture.SetData(data);
+            // Create a 32x32 magenta texture using Raylib
+            Image img = Raylib.GenImageColor(32, 32, Color.Magenta);
+            defaultTexture = Raylib.LoadTextureFromImage(img);
+            Raylib.UnloadImage(img);
         }
 
         public bool IsLoadingComplete => spriteSheets.Count > 0;
@@ -71,14 +71,13 @@ namespace IsometricMapViewer.src
                 }
             });
 
-
             foreach (var (filePath, startIndex, count, fileData) in spriteDataList)
             {
                 if (spriteSheets.ContainsKey(filePath)) continue;
 
                 try
                 {
-                    SpriteFile spriteFile = new(graphicsDevice);
+                    SpriteFile spriteFile = new();
                     spriteFile.Load(fileData, startIndex);
                     spriteSheets[filePath] = spriteFile;
                 }
@@ -105,7 +104,7 @@ namespace IsometricMapViewer.src
             {
                 try
                 {
-                    SpriteFile spriteFile = new(graphicsDevice);
+                    SpriteFile spriteFile = new();
                     spriteFile.Load(filePath, spriteLoad.startIndex);
                     spriteSheets[filePath] = spriteFile;
                 }

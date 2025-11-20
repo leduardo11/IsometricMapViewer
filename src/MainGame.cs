@@ -1,13 +1,14 @@
-﻿using System.IO;
-using IsometricMapViewer.Loaders;
+﻿using System;
+using System.IO;
+using Raylib_cs;
+using System.Numerics;
+using IsometricMapViewer.src;
 
-namespace IsometricMapViewer.src
+namespace IsometricMapViewer
 {
-    public class MainGame : Game
+    public class MainGame : IDisposable
     {
-        private readonly GraphicsDeviceManager _graphics;
-        private SpriteBatch _spriteBatch;
-        private Vector2 _mouseWorldPos;
+        private Vector2 _mouseWorldPos = new Vector2();
         private CameraHandler _camera;
         private InputHandler _inputHandler;
         private Map _map;
@@ -15,33 +16,21 @@ namespace IsometricMapViewer.src
         private MapExporter _exporter;
         private MapTile _hoveredTile;
         private string _mapPath;
+        private bool _showGrid = true;
+        private bool _showObjects = true;
+        private bool _showHotkeys = false;
         private static readonly string MapsFolder = Path.Combine("Maps");
         public Map Map => _map;
         public MapTile HoveredTile => _hoveredTile;
 
         public MainGame()
         {
-            _graphics = new GraphicsDeviceManager(this)
-            {
-                PreferredBackBufferWidth = 1280,
-                PreferredBackBufferHeight = 720,
-            };
-            Content.RootDirectory = "Content";
-            IsMouseVisible = true;
-        }
-
-        protected override void Initialize()
-        {
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-            var tileLoader = new TileLoader(GraphicsDevice);
-            tileLoader.PreloadAllSprites();
             _mapPath = GetFirstMapFilePath();
 
             if (string.IsNullOrEmpty(_mapPath))
             {
                 ConsoleLogger.LogError("No .amd files found in the Maps folder. Exiting.");
-                Exit();
-                return;
+                Environment.Exit(1);
             }
 
             _map = LoadMap(_mapPath);
@@ -49,92 +38,63 @@ namespace IsometricMapViewer.src
             if (_map == null)
             {
                 ConsoleLogger.LogError("Failed to initialize map. Exiting.");
-                Exit();
-                return;
+                Environment.Exit(1);
             }
 
+            var tileLoader = new TileLoader();
+            tileLoader.PreloadAllSprites();
             _map.ValidateMapSprites(tileLoader.GetTiles());
-            _camera = new CameraHandler(GraphicsDevice, _map);
+            _camera = new CameraHandler(_map);
             _camera.FitToMap();
-            _inputHandler = new InputHandler(_camera, GraphicsDevice, this);
+            _inputHandler = new InputHandler(_camera, this);
 
-            base.Initialize();
-        }
-
-        protected override void LoadContent()
-        {
-            var font = Content.Load<SpriteFont>("Default");
-            var spriteLoader = new SpriteLoader(GraphicsDevice);
+            var spriteLoader = new SpriteLoader();
             spriteLoader.LoadSprites();
-            _renderer = new GameRenderer(_spriteBatch, font, GraphicsDevice, _map, spriteLoader);
+            _renderer = new GameRenderer(_map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }
 
-        protected override void Update(GameTime gameTime)
+        public void UpdateAndDraw()
         {
-            _inputHandler.Update(gameTime);
-            var mouseState = Mouse.GetState();
-            _mouseWorldPos = _camera.ScreenToWorld(mouseState.Position.ToVector2());
+            _inputHandler.Update();
+            _mouseWorldPos = _camera.ScreenToWorld(GetMousePosition());
             _hoveredTile = _map.GetTileAtWorldPosition(_mouseWorldPos);
-            base.Update(gameTime);
-        }
 
-        protected override void Draw(GameTime gameTime)
-        {
-            GraphicsDevice.Clear(Color.Transparent);
+            _renderer.ShowGrid = _showGrid;
+            _renderer.ShowObjects = _showObjects;
+            _renderer.ShowHotkeys = _showHotkeys;
+
             _renderer.DrawMap(_camera);
             _renderer.DrawGrid(_camera);
             _renderer.DrawTileHighlight(_camera, _hoveredTile);
             _renderer.DrawDebugOverlay(_camera, _hoveredTile, _mouseWorldPos);
-            base.Draw(gameTime);
         }
 
-        public void ToggleGrid()
-        {
-            _renderer.ShowGrid = !_renderer.ShowGrid;
-        }
-
-        public void ToggleObjects()
-        {
-            _renderer.ShowObjects = !_renderer.ShowObjects;
-        }
-
-        public void ToggleFullscreen()
-        {
-            _graphics.ToggleFullScreen();
-        }
-
-        public void ToggleHotkeysDisplay()
-        {
-            _renderer.ShowHotkeys = !_renderer.ShowHotkeys;
-        }
+        public void ToggleGrid() => _showGrid = !_showGrid;
+        public void ToggleObjects() => _showObjects = !_showObjects;
+        public void ToggleHotkeysDisplay() => _showHotkeys = !_showHotkeys;
 
         private static string GetFirstMapFilePath()
         {
             string mapPath = Path.Combine(MapsFolder, Constants.MapName + ".amd");
 
             if (File.Exists(mapPath))
-            {
                 return mapPath;
-            }
 
             ConsoleLogger.LogWarning($"Map '{Constants.MapName}.amd' not found. Falling back to first available map.");
 
             var amdFiles = Directory.GetFiles(MapsFolder, "*.amd");
-
             return amdFiles.Length > 0 ? amdFiles[0] : null;
         }
 
         private static Map LoadMap(string mapPath)
         {
             var map = new Map();
-
             if (!map.Load(mapPath))
             {
                 ConsoleLogger.LogError($"Failed to load map: {mapPath}");
                 return null;
             }
-
             return map;
         }
 
@@ -151,30 +111,14 @@ namespace IsometricMapViewer.src
             }
         }
 
-        public void ExportMapToPng()
-        {
-            _exporter.ExportToPng();
-        }
+        public void ExportMapToPng() => _exporter.ExportToPng();
+        public void ExportObjectsToPng() => _exporter.ExportObjectsToPng();
+        public void ExportMapToTsx() => _exporter.ExportToTiledMap();
 
-        public void ExportObjectsToPng()
+        public void Dispose()
         {
-            _exporter.ExportObjectsToPng();
-        }
-
-        public void ExportMapToTsx()
-        {
-            _exporter.ExportToTiledMap();
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _renderer?.Dispose();
-                _exporter?.Dispose();
-                _spriteBatch?.Dispose();
-            }
-            base.Dispose(disposing);
+            _renderer?.Dispose();
+            _exporter?.Dispose();
         }
     }
 }

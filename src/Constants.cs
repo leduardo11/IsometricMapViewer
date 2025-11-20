@@ -1,4 +1,4 @@
-namespace IsometricMapViewer.src
+namespace IsometricMapViewer
 {
     public static class Constants
     {
@@ -13,8 +13,8 @@ namespace IsometricMapViewer.src
         public const float DefaultCameraZoom = 0.14f;
 
         // Minimum and maximum zoom levels for camera control, allowing scaling for visibility
-        public const float MinCameraZoom = 0.01f; // Allow even further zoom out for eagle view
-        public const float MaxCameraZoom = 2.0f; // Keep max zoom for finer control if needed
+        public const float MinCameraZoom = 0.01f;
+        public const float MaxCameraZoom = 2.0f;
 
         // Camera movement speed, scaled by tile width for consistent movement
         public const float BaseCameraSpeed = 10.0f;
@@ -29,33 +29,6 @@ namespace IsometricMapViewer.src
             public int PivotX;
             public int PivotY;
         }
-
-        // Blend states for pre-multiplication
-        public static readonly BlendState BlendColorBlendState = new()
-        {
-            ColorDestinationBlend = Blend.Zero,
-            ColorWriteChannels = ColorWriteChannels.Red | ColorWriteChannels.Green | ColorWriteChannels.Blue,
-            AlphaDestinationBlend = Blend.Zero,
-            AlphaSourceBlend = Blend.SourceAlpha,
-            ColorSourceBlend = Blend.SourceAlpha
-        };
-
-        public static readonly BlendState BlendAlphaBlendState = new()
-        {
-            ColorWriteChannels = ColorWriteChannels.Alpha,
-            AlphaDestinationBlend = Blend.Zero,
-            ColorDestinationBlend = Blend.Zero,
-            AlphaSourceBlend = Blend.One,
-            ColorSourceBlend = Blend.One
-        };
-
-        public static readonly BlendState PremultipliedBlendState = new()
-        {
-            ColorSourceBlend = Blend.One,
-            AlphaSourceBlend = Blend.One,
-            ColorDestinationBlend = Blend.InverseSourceAlpha,
-            AlphaDestinationBlend = Blend.InverseSourceAlpha
-        };
 
         public static readonly (string KeyCombo, string Description)[] hotkeys =
         [
