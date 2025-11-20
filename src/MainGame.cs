@@ -19,8 +19,7 @@ namespace IsometricMapViewer
         private bool _showGrid = true;
         private bool _showObjects = true;
         private bool _showHotkeys = false;
-        private static readonly string MapsFolder = Path.Combine("Maps");
-        public Map Map => _map;
+        private static readonly string MapsFolder = Path.Combine("..", "resources", "Maps"); public Map Map => _map;
         public MapTile HoveredTile => _hoveredTile;
 
         public MainGame()
@@ -53,7 +52,7 @@ namespace IsometricMapViewer
             _renderer = new GameRenderer(_map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }
-        
+
         public void UpdateAndDraw()
         {
             _inputHandler.Update();

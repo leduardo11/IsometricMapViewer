@@ -14,7 +14,7 @@ namespace IsometricMapViewer
         {
             foreach (var (fileName, startIndex, count) in Constants.SpritesToLoad)
             {
-                string filePath = Path.Combine("Sprites", fileName);
+                string filePath = Path.Combine("..", "resources", "Sprites", fileName);
                 var spriteFile = new SpriteFile();
                 try
                 {
