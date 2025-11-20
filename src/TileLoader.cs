@@ -132,7 +132,9 @@ namespace IsometricMapViewer
                     for (int i = 0; i < spriteFile.Sprites.Count; i++)
                     {
                         int spriteId = startIndex + i;
-                        tiles[spriteId] = new Tile(spriteFile.Sprites[i].Texture ?? defaultTexture);
+                        var tex = spriteFile.Sprites[i].Texture;
+                        if (tex.Id == 0) tex = defaultTexture;
+                        tiles[spriteId] = new Tile(tex);
                     }
                 }
             }

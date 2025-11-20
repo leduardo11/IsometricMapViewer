@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using IsometricMapViewer.src;
 using Raylib_cs;
+using static Raylib_cs.Raylib;
 
 namespace IsometricMapViewer
 {
@@ -41,7 +42,7 @@ namespace IsometricMapViewer
         {
             if (hoveredTile == null) return;
             Vector2 pos = ToScreenCoordinates(hoveredTile.X, hoveredTile.Y);
-            Raylib.DrawRectangleV(pos, new Vector2(Constants.TileWidth, Constants.TileHeight), Raylib_cs.ColorAlpha(Color.Yellow, 0.5f));
+            Raylib.DrawRectangleV(pos, new Vector2(Constants.TileWidth, Constants.TileHeight), ColorAlpha(Color.Yellow, 0.5f));
         }
 
         public void DrawDebugOverlay(CameraHandler camera, MapTile hoveredTile, Vector2 mouseWorldPos)
@@ -111,7 +112,7 @@ namespace IsometricMapViewer
         {
             var texture = _spriteLoader.GetTexture(spriteId);
 
-            if (texture.id == 0) return; // Raylib default: id==0 means invalid
+            if (texture.Id == 0) return; // Raylib default: id==0 means invalid
 
             Constants.SpriteFrame frame = _spriteLoader.GetSpriteFrame(spriteId, frameIndex);
             Rectangle sourceRect = new Rectangle(frame.Left, frame.Top, frame.Width, frame.Height);

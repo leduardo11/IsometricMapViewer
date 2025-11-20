@@ -53,11 +53,12 @@ namespace IsometricMapViewer
             _renderer = new GameRenderer(_map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }
-
+        
         public void UpdateAndDraw()
         {
             _inputHandler.Update();
-            _mouseWorldPos = _camera.ScreenToWorld(GetMousePosition());
+            var mousePos = Raylib.GetMousePosition();
+            _mouseWorldPos = new System.Numerics.Vector2(mousePos.X, mousePos.Y);
             _hoveredTile = _map.GetTileAtWorldPosition(_mouseWorldPos);
 
             _renderer.ShowGrid = _showGrid;
@@ -69,7 +70,6 @@ namespace IsometricMapViewer
             _renderer.DrawTileHighlight(_camera, _hoveredTile);
             _renderer.DrawDebugOverlay(_camera, _hoveredTile, _mouseWorldPos);
         }
-
         public void ToggleGrid() => _showGrid = !_showGrid;
         public void ToggleObjects() => _showObjects = !_showObjects;
         public void ToggleHotkeysDisplay() => _showHotkeys = !_showHotkeys;

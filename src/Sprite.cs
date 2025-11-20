@@ -63,7 +63,7 @@ namespace IsometricMapViewer
                 try
                 {
                     using MemoryStream stream = new(_sprites[i].ImageData);
-                    Image img = Raylib.LoadImageFromMemory(".png", _sprites[i].ImageData, _sprites[i].ImageLength);
+                    Image img = Raylib.LoadImageFromMemory(".png", _sprites[i].ImageData);
                     _sprites[i].Texture = Raylib.LoadTextureFromImage(img);
                     Raylib.UnloadImage(img);
                 }

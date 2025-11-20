@@ -25,8 +25,9 @@ namespace IsometricMapViewer.src
                 string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
                 Directory.CreateDirectory(mapFolder);
                 string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}_objects.png");
-                using Texture2D exportedTexture = _gameRenderer.RenderObjectsToTexture();
-                SaveTextureToFile(exportedTexture, exportPath);
+                RenderTexture2D renderTexture = _gameRenderer.RenderObjectsToTexture();
+                SaveTextureToFile(renderTexture.Texture, exportPath);
+                Raylib.UnloadRenderTexture(renderTexture);
                 ConsoleLogger.LogInfo($"Objects PNG created at: {exportPath}");
                 return exportPath;
             });
@@ -69,8 +70,9 @@ namespace IsometricMapViewer.src
             string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
             Directory.CreateDirectory(mapFolder);
             string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}.png");
-            using Texture2D exportedTexture = _gameRenderer.RenderFullMapToTexture();
-            SaveTextureToFile(exportedTexture, exportPath);
+            RenderTexture2D renderTexture = _gameRenderer.RenderFullMapToTexture();
+            SaveTextureToFile(renderTexture.Texture, exportPath);
+            Raylib.UnloadRenderTexture(renderTexture);
             ConsoleLogger.LogInfo($"Map PNG created at: {exportPath}");
             return exportPath;
         }
@@ -161,8 +163,9 @@ namespace IsometricMapViewer.src
 
         private static void SaveTextureToFile(Texture2D texture, string filePath)
         {
-            using FileStream stream = new(filePath, FileMode.Create);
-            texture.SaveAsPng(stream, texture.Width, texture.Height);
+            Image img = Raylib.LoadImageFromTexture(texture);
+            Raylib.ExportImage(img, filePath);
+            Raylib.UnloadImage(img);
         }
 
         private void CreateTmxFile(string filePath)
@@ -215,8 +218,10 @@ namespace IsometricMapViewer.src
             {
                 string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
                 string debugTexturePath = Path.Combine(mapFolder, "debug_outlines.png");
-                using Texture2D debugTexture = CreateDebugTexture();
+                Texture2D debugTexture = CreateDebugTexture();
                 SaveTextureToFile(debugTexture, debugTexturePath);
+                Raylib.UnloadTexture(debugTexture);
+
                 int debugFirstGid = _map.Width * _map.Height + 1;
                 writer.WriteStartElement("tileset");
                 writer.WriteAttributeString("firstgid", debugFirstGid.ToString());
@@ -264,25 +269,15 @@ namespace IsometricMapViewer.src
 
         private Texture2D CreateDebugTexture()
         {
-            Texture2D texture = _gameRenderer.CreateTexture2D(32, 128); // Four 32x32 tiles, stacked vertically
-            Color[] data = new Color[32 * 128];
-            Color[] colors = [Color.Red, Color.Blue, Color.Green, Color.Cyan]; // Order: blocked, teleport, farming, water
-
-            for (int tile = 0; tile < 4; tile++)
-            {
-                Color color = colors[tile];
-                int offsetY = tile * 32;
-                // Top border
-                for (int x = 0; x < 32; x++) data[x + offsetY * 32] = color;
-                // Bottom border
-                for (int x = 0; x < 32; x++) data[x + (offsetY + 31) * 32] = color;
-                // Left border
-                for (int y = 0; y < 32; y++) data[offsetY + y * 32] = color;
-                // Right border
-                for (int y = 0; y < 32; y++) data[31 + (offsetY + y) * 32] = color;
-            }
-            texture.SetData(data);
-            return texture;
+            // Create an image 32x128 (4 tiles stacked vertically)
+            Image img = Raylib.GenImageColor(32, 128, Color.Blank);
+            Raylib.ImageDrawRectangle(ref img, 0, 0, 32, 32, Color.Red);      // Blocked
+            Raylib.ImageDrawRectangle(ref img, 0, 32, 32, 32, Color.Blue);    // Teleport
+            Raylib.ImageDrawRectangle(ref img, 0, 64, 32, 32, Color.Green);   // Farming
+            Raylib.ImageDrawRectangle(ref img, 0, 96, 32, 32, new Color(0, 255, 255, 255)); // Cyan
+            Texture2D tex = Raylib.LoadTextureFromImage(img);
+            Raylib.UnloadImage(img);
+            return tex;
         }
 
         public void Dispose()

@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -147,10 +148,10 @@ namespace IsometricMapViewer.src
 
         public IEnumerable<MapTile> GetVisibleTiles(Rectangle viewBounds)
         {
-            int startX = Math.Max(0, viewBounds.Left);
-            int endX = Math.Min(Width, viewBounds.Right);
-            int startY = Math.Max(0, viewBounds.Top);
-            int endY = Math.Min(Height, viewBounds.Bottom);
+            int startX = Math.Max(0, (int)viewBounds.X);
+            int endX = Math.Min(Width, (int)(viewBounds.X + viewBounds.Width));
+            int startY = Math.Max(0, (int)viewBounds.Y);
+            int endY = Math.Min(Height, (int)(viewBounds.Y + viewBounds.Height));
             for (int y = startY; y < endY; y++)
             {
                 for (int x = startX; x < endX; x++)
@@ -287,8 +288,6 @@ namespace IsometricMapViewer.src
         }
     }
 
-
-
     public struct TileProperties
     {
         public bool IsMoveAllowed;
@@ -322,8 +321,14 @@ namespace IsometricMapViewer.src
         }
     }
 
-    public class Tile(Texture2D texture)
+    public class Tile
     {
-        public Texture2D Texture { get; } = texture ?? throw new ArgumentNullException(nameof(texture), "Tile texture cannot be null");
+        public Texture2D Texture { get; }
+        public Tile(Texture2D texture)
+        {
+            if (texture.Id == 0)
+                throw new ArgumentNullException(nameof(texture), "Tile texture cannot be null or invalid");
+            Texture = texture;
+        }
     }
 }
