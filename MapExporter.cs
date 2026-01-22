@@ -287,6 +287,24 @@ namespace IsometricMapViewer
             return texture;
         }
 
+        public string ExportToPng(bool includeObjects = true)
+        {
+            return WithExportLock(() => ExportPngInternal(includeObjects));
+        }
+        private string ExportPngInternal(bool includeObjects = true)
+        {
+            ConsoleLogger.LogInfo("Starting map export to PNG...");
+            string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
+            Directory.CreateDirectory(mapFolder);
+            string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}.png");
+            using Texture2D exportedTexture = includeObjects
+                ? _gameRenderer.RenderFullMapToTexture()
+                : _gameRenderer.RenderMapWithoutObjectsToTexture();
+            SaveTextureToFile(exportedTexture, exportPath);
+            ConsoleLogger.LogInfo($"Map PNG created at: {exportPath}");
+            return exportPath;
+        }
+
         public void Dispose()
         {
         }

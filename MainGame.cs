@@ -69,8 +69,8 @@ namespace IsometricMapViewer
         protected override void LoadContent()
         {
             var font = Content.Load<SpriteFont>("Default");
-            var spriteLoader = new SpriteLoader(GraphicsDevice); 
-            spriteLoader.LoadSprites(); 
+            var spriteLoader = new SpriteLoader(GraphicsDevice);
+            spriteLoader.LoadSprites();
             _renderer = new GameRenderer(_spriteBatch, font, GraphicsDevice, _map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }
@@ -158,7 +158,7 @@ namespace IsometricMapViewer
 
         public void ExportMapToPng()
         {
-            _exporter.ExportToPng();
+            _exporter.ExportToPng(_renderer.ShowObjects);
         }
 
         public void ExportObjectsToPng()

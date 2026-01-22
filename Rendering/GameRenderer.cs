@@ -84,6 +84,11 @@ namespace IsometricMapViewer.Rendering
             return new Texture2D(_spriteBatch.GraphicsDevice, width, height);
         }
 
+        public Texture2D RenderMapWithoutObjectsToTexture()
+        {
+            return RenderMapToTexture(true, false);
+        }
+
         public void Dispose()
         {
             _highlightTexture.Dispose();
