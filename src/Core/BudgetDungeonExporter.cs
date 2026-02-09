@@ -143,7 +143,6 @@ namespace IsometricMapViewer
         public int Y { get; set; }
 
         [JsonPropertyName("type")]
-        [JsonConverter(typeof(JsonStringEnumConverter))]
         public BudgetDungeonTileType Type { get; set; }
     }
 
