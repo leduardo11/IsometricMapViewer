@@ -89,6 +89,7 @@ namespace IsometricMapViewer.Rendering
             
             Image img = Raylib.LoadImageFromTexture(renderTarget.Texture);
             Raylib.UnloadRenderTexture(renderTarget);
+            Raylib.ImageFlipVertical(ref img);
             
             return img;
         }
