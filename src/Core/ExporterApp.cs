@@ -21,6 +21,8 @@ namespace IsometricMapViewer
         private string _statusMessage = "";
         private float _statusTimer = 0f;
         private bool _showUI = true;
+        private bool _isExporting = false;
+        private string _exportingMessage = "";
 
         public ExporterApp()
         {
@@ -85,6 +87,10 @@ namespace IsometricMapViewer
         {
             if (_statusTimer > 0)
                 _statusTimer -= Raylib.GetFrameTime();
+
+            // Don't process input during export
+            if (_isExporting)
+                return;
 
             // Toggle UI
             if (Raylib.IsKeyPressed(KeyboardKey.Tab))
@@ -155,6 +161,10 @@ namespace IsometricMapViewer
             // Draw UI
             if (_showUI)
                 DrawUI();
+
+            // Draw export loading overlay
+            if (_isExporting)
+                DrawExportingOverlay();
 
             // Draw status message
             if (_statusTimer > 0)
@@ -255,6 +265,46 @@ namespace IsometricMapViewer
             Raylib.DrawText(_statusMessage, x, y, UIConfig.FONT_LARGE, ColorKeys.Gold);
         }
 
+        private void DrawExportingOverlay()
+        {
+            int screenW = Raylib.GetScreenWidth();
+            int screenH = Raylib.GetScreenHeight();
+
+            // Semi-transparent dark overlay
+            Raylib.DrawRectangle(0, 0, screenW, screenH, new Color(0, 0, 0, 180));
+
+            // Loading box
+            int boxWidth = 500;
+            int boxHeight = 150;
+            int boxX = (screenW - boxWidth) / 2;
+            int boxY = (screenH - boxHeight) / 2;
+
+            var boxBounds = new Rectangle(boxX, boxY, boxWidth, boxHeight);
+            Raylib.DrawRectangleRec(boxBounds, ColorKeys.DarkStone);
+            Raylib.DrawRectangleLinesEx(boxBounds, 3, ColorKeys.Gold);
+
+            // Animated loading text with dots
+            float time = (float)Raylib.GetTime();
+            int dots = ((int)(time * 2) % 4);
+            string loadingText = _exportingMessage + new string('.', dots);
+            
+            int textWidth = Raylib.MeasureText(loadingText, UIConfig.FONT_LARGE);
+            int textX = boxX + (boxWidth - textWidth) / 2;
+            int textY = boxY + 40;
+
+            Raylib.DrawText(loadingText, textX + 1, textY + 1, UIConfig.FONT_LARGE, ColorKeys.Shadow);
+            Raylib.DrawText(loadingText, textX, textY, UIConfig.FONT_LARGE, ColorKeys.Gold);
+
+            // Info text
+            string infoText = "Please wait, this may take a moment for large maps";
+            int infoWidth = Raylib.MeasureText(infoText, UIConfig.FONT_SMALL);
+            int infoX = boxX + (boxWidth - infoWidth) / 2;
+            int infoY = textY + 50;
+
+            Raylib.DrawText(infoText, infoX + 1, infoY + 1, UIConfig.FONT_SMALL, ColorKeys.Shadow);
+            Raylib.DrawText(infoText, infoX, infoY, UIConfig.FONT_SMALL, ColorKeys.Bone);
+        }
+
         private void LoadMap(string mapName)
         {
             try
@@ -279,7 +329,25 @@ namespace IsometricMapViewer
 
         private void ExportGrid()
         {
-            if (_map == null || _exporter == null) return;
+            if (_map == null || _exporter == null || _isExporting) return;
+
+            // Set exporting state and message
+            _isExporting = true;
+            _exportingMessage = "Exporting Grid";
+            
+            // Force one frame render to show the loading overlay
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(Color.Black);
+            if (_map != null && _renderer != null)
+            {
+                _renderer.DrawMap(_camera);
+                if (_renderer.ShowGrid)
+                    _renderer.DrawGrid(_camera);
+            }
+            if (_showUI)
+                DrawUI();
+            DrawExportingOverlay();
+            Raylib.EndDrawing();
 
             try
             {
@@ -296,11 +364,33 @@ namespace IsometricMapViewer
             {
                 ShowStatus($"Grid export failed: {ex.Message}");
             }
+            finally
+            {
+                _isExporting = false;
+            }
         }
 
         private void ExportPNG()
         {
-            if (_map == null || _renderer == null) return;
+            if (_map == null || _renderer == null || _isExporting) return;
+
+            // Set exporting state and message
+            _isExporting = true;
+            _exportingMessage = "Exporting PNG";
+            
+            // Force one frame render to show the loading overlay
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(Color.Black);
+            if (_map != null && _renderer != null)
+            {
+                _renderer.DrawMap(_camera);
+                if (_renderer.ShowGrid)
+                    _renderer.DrawGrid(_camera);
+            }
+            if (_showUI)
+                DrawUI();
+            DrawExportingOverlay();
+            Raylib.EndDrawing();
 
             try
             {
@@ -320,6 +410,10 @@ namespace IsometricMapViewer
             catch (Exception ex)
             {
                 ShowStatus($"PNG export failed: {ex.Message}");
+            }
+            finally
+            {
+                _isExporting = false;
             }
         }
 
