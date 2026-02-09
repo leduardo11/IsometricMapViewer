@@ -4,24 +4,21 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using IsometricMapViewer.Handlers;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using Raylib_cs;
 
 namespace IsometricMapViewer.Loaders
 {
     public class TileLoader
     {
-        private readonly GraphicsDevice graphicsDevice;
         private readonly Dictionary<string, SpriteFile> spriteSheets = [];
         private readonly Texture2D defaultTexture;
 
-        public TileLoader(GraphicsDevice graphicsDevice)
+        public TileLoader()
         {
-            this.graphicsDevice = graphicsDevice;
-            defaultTexture = new Texture2D(graphicsDevice, 32, 32);
-            Color[] data = new Color[32 * 32];
-            Array.Fill(data, Color.Magenta);
-            defaultTexture.SetData(data);
+            // Create a default magenta texture for missing sprites
+            Image img = Raylib.GenImageColor(32, 32, Color.Magenta);
+            defaultTexture = Raylib.LoadTextureFromImage(img);
+            Raylib.UnloadImage(img);
         }
 
         public bool IsLoadingComplete => spriteSheets.Count > 0;
@@ -51,7 +48,7 @@ namespace IsometricMapViewer.Loaders
 
             Parallel.ForEach(Constants.SpritesToLoad, spriteLoad =>
             {
-                string filePath = Path.Combine("Sprites", spriteLoad.fileName);
+                string filePath = Path.Combine("resources", "sprites", spriteLoad.fileName);
 
                 if (!File.Exists(filePath))
                 {
@@ -74,14 +71,13 @@ namespace IsometricMapViewer.Loaders
                 }
             });
 
-
             foreach (var (filePath, startIndex, count, fileData) in spriteDataList)
             {
                 if (spriteSheets.ContainsKey(filePath)) continue;
 
                 try
                 {
-                    SpriteFile spriteFile = new(graphicsDevice);
+                    SpriteFile spriteFile = new();
                     spriteFile.Load(fileData, startIndex);
                     spriteSheets[filePath] = spriteFile;
                 }
@@ -102,13 +98,13 @@ namespace IsometricMapViewer.Loaders
                 return;
             }
 
-            string filePath = Path.Combine("Sprites", spriteLoad.fileName);
+            string filePath = Path.Combine("resources", "sprites", spriteLoad.fileName);
 
             if (!spriteSheets.ContainsKey(filePath))
             {
                 try
                 {
-                    SpriteFile spriteFile = new(graphicsDevice);
+                    SpriteFile spriteFile = new();
                     spriteFile.Load(filePath, spriteLoad.startIndex);
                     spriteSheets[filePath] = spriteFile;
                 }
@@ -129,14 +125,14 @@ namespace IsometricMapViewer.Loaders
 
             foreach (var (fileName, startIndex, count) in Constants.SpritesToLoad)
             {
-                string filePath = Path.Combine("Sprites", fileName);
+                string filePath = Path.Combine("resources", "sprites", fileName);
 
                 if (spriteSheets.TryGetValue(filePath, out var spriteFile))
                 {
                     for (int i = 0; i < spriteFile.Sprites.Count; i++)
                     {
                         int spriteId = startIndex + i;
-                        tiles[spriteId] = new Tile(spriteFile.Sprites[i].Texture ?? defaultTexture);
+                        tiles[spriteId] = new Tile(spriteFile.Sprites[i].Texture);
                     }
                 }
             }

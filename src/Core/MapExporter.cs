@@ -2,8 +2,7 @@ using System;
 using System.IO;
 using System.Xml;
 using IsometricMapViewer.Rendering;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using Raylib_cs;
 
 namespace IsometricMapViewer
 {
@@ -27,8 +26,8 @@ namespace IsometricMapViewer
                 string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
                 Directory.CreateDirectory(mapFolder);
                 string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}_objects.png");
-                using Texture2D exportedTexture = _gameRenderer.RenderObjectsToTexture();
-                SaveTextureToFile(exportedTexture, exportPath);
+                Image exportedImage = _gameRenderer.RenderObjectsToImage();
+                Raylib.ExportImage(exportedImage, exportPath);
                 ConsoleLogger.LogInfo($"Objects PNG created at: {exportPath}");
                 return exportPath;
             });
@@ -71,8 +70,8 @@ namespace IsometricMapViewer
             string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
             Directory.CreateDirectory(mapFolder);
             string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}.png");
-            using Texture2D exportedTexture = _gameRenderer.RenderFullMapToTexture();
-            SaveTextureToFile(exportedTexture, exportPath);
+            Image exportedImage = _gameRenderer.RenderFullMapToImage();
+            Raylib.ExportImage(exportedImage, exportPath);
             ConsoleLogger.LogInfo($"Map PNG created at: {exportPath}");
             return exportPath;
         }
@@ -144,11 +143,11 @@ namespace IsometricMapViewer
                     if (tile.IsWater)
                         WriteProperty(writer, "IsWater", true);
 
-                    writer.WriteEndElement(); // </properties>
-                    writer.WriteEndElement(); // </tile>
+                    writer.WriteEndElement();
+                    writer.WriteEndElement();
                 }
             }
-            writer.WriteEndElement(); // </tileset>
+            writer.WriteEndElement();
             writer.WriteEndDocument();
         }
 
@@ -159,12 +158,6 @@ namespace IsometricMapViewer
             writer.WriteAttributeString("type", "bool");
             writer.WriteAttributeString("value", "true");
             writer.WriteEndElement();
-        }
-
-        private static void SaveTextureToFile(Texture2D texture, string filePath)
-        {
-            using FileStream stream = new(filePath, FileMode.Create);
-            texture.SaveAsPng(stream, texture.Width, texture.Height);
         }
 
         private void CreateTmxFile(string filePath)
@@ -183,13 +176,11 @@ namespace IsometricMapViewer
             writer.WriteAttributeString("tileheight", "32");
             writer.WriteAttributeString("infinite", "0");
 
-            // Tileset reference
             writer.WriteStartElement("tileset");
             writer.WriteAttributeString("firstgid", "1");
             writer.WriteAttributeString("source", $"{Constants.MapName}.tsx");
             writer.WriteEndElement();
 
-            // Tile layer (visual layout with properties via tile IDs)
             writer.WriteStartElement("layer");
             writer.WriteAttributeString("id", "1");
             writer.WriteAttributeString("name", "TileLayer1");
@@ -209,16 +200,16 @@ namespace IsometricMapViewer
                 if (y < _map.Height - 1) writer.WriteString(",\n");
             }
 
-            writer.WriteEndElement(); // </data>
-            writer.WriteEndElement(); // </layer>
+            writer.WriteEndElement();
+            writer.WriteEndElement();
 
-            // Optional debug overlay (unchanged)
             if (_gameRenderer.ShowGrid)
             {
                 string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
                 string debugTexturePath = Path.Combine(mapFolder, "debug_outlines.png");
-                using Texture2D debugTexture = CreateDebugTexture();
-                SaveTextureToFile(debugTexture, debugTexturePath);
+                Image debugImage = CreateDebugImage();
+                Raylib.ExportImage(debugImage, debugTexturePath);
+                
                 int debugFirstGid = _map.Width * _map.Height + 1;
                 writer.WriteStartElement("tileset");
                 writer.WriteAttributeString("firstgid", debugFirstGid.ToString());
@@ -233,8 +224,9 @@ namespace IsometricMapViewer
                 writer.WriteAttributeString("height", "128");
                 writer.WriteEndElement();
                 writer.WriteEndElement();
+                
                 writer.WriteStartElement("layer");
-                writer.WriteAttributeString("id", "2"); // Adjusted ID since object layer is removed
+                writer.WriteAttributeString("id", "2");
                 writer.WriteAttributeString("name", "DebugOverlay");
                 writer.WriteAttributeString("width", _map.Width.ToString());
                 writer.WriteAttributeString("height", _map.Height.ToString());
@@ -246,61 +238,64 @@ namespace IsometricMapViewer
                     for (int x = 0; x < _map.Width; x++)
                     {
                         var tile = _map.Tiles[x, y];
-                        int gid = 0; // 0 means no tile
-                        if (tile.IsTeleport) gid = debugFirstGid + 1; // Blue outline
-                        else if (!tile.IsMoveAllowed) gid = debugFirstGid; // Red outline
-                        else if (tile.IsFarmingAllowed) gid = debugFirstGid + 2; // Green outline
-                        else if (tile.IsWater) gid = debugFirstGid + 3; // Cyan outline
+                        int gid = 0;
+                        if (tile.IsTeleport) gid = debugFirstGid + 1;
+                        else if (!tile.IsMoveAllowed) gid = debugFirstGid;
+                        else if (tile.IsFarmingAllowed) gid = debugFirstGid + 2;
+                        else if (tile.IsWater) gid = debugFirstGid + 3;
                         writer.WriteString(gid.ToString());
                         if (x < _map.Width - 1) writer.WriteString(",");
                     }
                     if (y < _map.Height - 1) writer.WriteString(",\n");
                 }
-                writer.WriteEndElement(); // </data>
-                writer.WriteEndElement(); // </layer>
+                writer.WriteEndElement();
+                writer.WriteEndElement();
             }
 
-            writer.WriteEndElement(); // </map>
+            writer.WriteEndElement();
             writer.WriteEndDocument();
         }
 
-        private Texture2D CreateDebugTexture()
+        private Image CreateDebugImage()
         {
-            Texture2D texture = _gameRenderer.CreateTexture2D(32, 128); // Four 32x32 tiles, stacked vertically
-            Color[] data = new Color[32 * 128];
-            Color[] colors = [Color.Red, Color.Blue, Color.Green, Color.Cyan]; // Order: blocked, teleport, farming, water
+            Image img = Raylib.GenImageColor(32, 128, Color.Blank);
+            Color[] colors = [Color.Red, Color.Blue, Color.Green, new Color(0, 255, 255, 255)];
 
             for (int tile = 0; tile < 4; tile++)
             {
                 Color color = colors[tile];
                 int offsetY = tile * 32;
-                // Top border
-                for (int x = 0; x < 32; x++) data[x + offsetY * 32] = color;
-                // Bottom border
-                for (int x = 0; x < 32; x++) data[x + (offsetY + 31) * 32] = color;
-                // Left border
-                for (int y = 0; y < 32; y++) data[offsetY + y * 32] = color;
-                // Right border
-                for (int y = 0; y < 32; y++) data[31 + (offsetY + y) * 32] = color;
+                
+                // Draw borders
+                for (int x = 0; x < 32; x++)
+                {
+                    Raylib.ImageDrawPixel(ref img, x, offsetY, color);
+                    Raylib.ImageDrawPixel(ref img, x, offsetY + 31, color);
+                }
+                for (int y = 0; y < 32; y++)
+                {
+                    Raylib.ImageDrawPixel(ref img, 0, offsetY + y, color);
+                    Raylib.ImageDrawPixel(ref img, 31, offsetY + y, color);
+                }
             }
-            texture.SetData(data);
-            return texture;
+            return img;
         }
 
         public string ExportToPng(bool includeObjects = true)
         {
             return WithExportLock(() => ExportPngInternal(includeObjects));
         }
+        
         private string ExportPngInternal(bool includeObjects = true)
         {
             ConsoleLogger.LogInfo("Starting map export to PNG...");
             string mapFolder = Path.Combine(Constants.OutputPath, Constants.MapName);
             Directory.CreateDirectory(mapFolder);
             string exportPath = Path.Combine(mapFolder, $"{Constants.MapName}.png");
-            using Texture2D exportedTexture = includeObjects
-                ? _gameRenderer.RenderFullMapToTexture()
-                : _gameRenderer.RenderMapWithoutObjectsToTexture();
-            SaveTextureToFile(exportedTexture, exportPath);
+            Image exportedImage = includeObjects
+                ? _gameRenderer.RenderFullMapToImage()
+                : _gameRenderer.RenderMapWithoutObjectsToImage();
+            Raylib.ExportImage(exportedImage, exportPath);
             ConsoleLogger.LogInfo($"Map PNG created at: {exportPath}");
             return exportPath;
         }

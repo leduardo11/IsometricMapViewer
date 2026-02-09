@@ -1,27 +1,19 @@
-using Microsoft.Xna.Framework.Graphics;
-
 namespace IsometricMapViewer
 {
     public static class Constants
     {
         public const string OutputPath = "/home/leduardo";
-        public const string MapName = "2ndmiddle";
+        public const string MapName = "arefarm";
         public const int TileWidth = 32;
         public const int TileHeight = 32;
         public const int ExpectedTileSize = 10;
         public const int HeaderBufferSize = 256;
 
-        // Default camera zoom level to show the entire 250x250 map in the 1280x720 viewport (eagle view)
         public const float DefaultCameraZoom = 0.14f;
-
-        // Minimum and maximum zoom levels for camera control, allowing scaling for visibility
-        public const float MinCameraZoom = 0.01f; // Allow even further zoom out for eagle view
-        public const float MaxCameraZoom = 2.0f; // Keep max zoom for finer control if needed
-
-        // Camera movement speed, scaled by tile width for consistent movement
+        public const float MinCameraZoom = 0.01f;
+        public const float MaxCameraZoom = 2.0f;
         public const float BaseCameraSpeed = 10.0f;
 
-        // Structure for sprite frame data in sprite files
         public struct SpriteFrame
         {
             public int Left;
@@ -31,33 +23,6 @@ namespace IsometricMapViewer
             public int PivotX;
             public int PivotY;
         }
-
-        // Blend states for pre-multiplication
-        public static readonly BlendState BlendColorBlendState = new()
-        {
-            ColorDestinationBlend = Blend.Zero,
-            ColorWriteChannels = ColorWriteChannels.Red | ColorWriteChannels.Green | ColorWriteChannels.Blue,
-            AlphaDestinationBlend = Blend.Zero,
-            AlphaSourceBlend = Blend.SourceAlpha,
-            ColorSourceBlend = Blend.SourceAlpha
-        };
-
-        public static readonly BlendState BlendAlphaBlendState = new()
-        {
-            ColorWriteChannels = ColorWriteChannels.Alpha,
-            AlphaDestinationBlend = Blend.Zero,
-            ColorDestinationBlend = Blend.Zero,
-            AlphaSourceBlend = Blend.One,
-            ColorSourceBlend = Blend.One
-        };
-
-        public static readonly BlendState PremultipliedBlendState = new()
-        {
-            ColorSourceBlend = Blend.One,
-            AlphaSourceBlend = Blend.One,
-            ColorDestinationBlend = Blend.InverseSourceAlpha,
-            AlphaDestinationBlend = Blend.InverseSourceAlpha
-        };
 
         public static readonly (string KeyCombo, string Description)[] hotkeys =
         [

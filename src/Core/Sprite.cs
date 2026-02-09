@@ -1,15 +1,13 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework;
 using System.Linq;
+using Raylib_cs;
 
 namespace IsometricMapViewer
 {
-    public class SpriteFile(GraphicsDevice graphicsDevice) : IDisposable
+    public class SpriteFile : IDisposable
     {
-        private readonly GraphicsDevice _graphicsDevice = graphicsDevice;
         private readonly List<Sprite> _sprites = [];
 
         public void Load(string filePath, int startIndex = 0)
@@ -64,15 +62,25 @@ namespace IsometricMapViewer
 
                 try
                 {
-                    using MemoryStream stream = new(_sprites[i].ImageData);
-                    _sprites[i].Texture = Texture2D.FromStream(_graphicsDevice, stream);
+                    unsafe
+                    {
+                        fixed (byte* dataPtr = _sprites[i].ImageData)
+                        {
+                            fixed (byte* extPtr = ".png"u8)
+                            {
+                                Image img = Raylib.LoadImageFromMemory((sbyte*)extPtr, (byte*)dataPtr, _sprites[i].ImageLength);
+                                _sprites[i].Texture = Raylib.LoadTextureFromImage(img);
+                                Raylib.UnloadImage(img);
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _sprites[i].Texture = new Texture2D(_graphicsDevice, 32, 32);
-                    Color[] data = new Color[32 * 32];
-                    Array.Fill(data, Color.Magenta);
-                    _sprites[i].Texture.SetData(data);
+                    // Create default magenta texture for failed loads
+                    Image img = Raylib.GenImageColor(32, 32, Color.Magenta);
+                    _sprites[i].Texture = Raylib.LoadTextureFromImage(img);
+                    Raylib.UnloadImage(img);
                     ConsoleLogger.LogError($"Failed to load texture for sprite {_sprites[i].Index}: {ex.Message}");
                 }
             }
@@ -85,7 +93,10 @@ namespace IsometricMapViewer
         {
             foreach (Sprite sprite in _sprites)
             {
-                sprite.Texture?.Dispose();
+                if (sprite.Texture.Id != 0)
+                {
+                    Raylib.UnloadTexture(sprite.Texture);
+                }
             }
         }
     }

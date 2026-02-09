@@ -1,17 +1,15 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Numerics;
 using IsometricMapViewer.Handlers;
 using IsometricMapViewer.Loaders;
 using IsometricMapViewer.Rendering;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
+using Raylib_cs;
 
 namespace IsometricMapViewer
 {
-    public class MainGame : Game
+    public class MainGame
     {
-        private readonly GraphicsDeviceManager _graphics;
-        private SpriteBatch _spriteBatch;
         private Vector2 _mouseWorldPos;
         private CameraHandler _camera;
         private InputHandler _inputHandler;
@@ -20,32 +18,39 @@ namespace IsometricMapViewer
         private MapExporter _exporter;
         private MapTile _hoveredTile;
         private string _mapPath;
-        private static readonly string MapsFolder = Path.Combine("Maps");
+        private static readonly string MapsFolder = Path.Combine("resources", "maps");
+        private Font _font;
+        
         public Map Map => _map;
         public MapTile HoveredTile => _hoveredTile;
 
-        public MainGame()
+        public void Run()
         {
-            _graphics = new GraphicsDeviceManager(this)
+            Raylib.InitWindow(1280, 720, "Isometric Map Viewer");
+            Raylib.SetTargetFPS(60);
+            
+            Initialize();
+            LoadContent();
+            
+            while (!Raylib.WindowShouldClose())
             {
-                PreferredBackBufferWidth = 1280,
-                PreferredBackBufferHeight = 720,
-            };
-            Content.RootDirectory = "Content";
-            IsMouseVisible = true;
+                Update();
+                Draw();
+            }
+            
+            Dispose();
+            Raylib.CloseWindow();
         }
 
-        protected override void Initialize()
+        private void Initialize()
         {
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-            var tileLoader = new TileLoader(GraphicsDevice);
+            var tileLoader = new TileLoader();
             tileLoader.PreloadAllSprites();
             _mapPath = GetFirstMapFilePath();
 
             if (string.IsNullOrEmpty(_mapPath))
             {
                 ConsoleLogger.LogError("No .amd files found in the Maps folder. Exiting.");
-                Exit();
                 return;
             }
 
@@ -54,44 +59,43 @@ namespace IsometricMapViewer
             if (_map == null)
             {
                 ConsoleLogger.LogError("Failed to initialize map. Exiting.");
-                Exit();
                 return;
             }
 
             _map.ValidateMapSprites(tileLoader.GetTiles());
-            _camera = new CameraHandler(GraphicsDevice, _map);
+            _camera = new CameraHandler(_map);
             _camera.FitToMap();
-            _inputHandler = new InputHandler(_camera, GraphicsDevice, this);
-
-            base.Initialize();
+            _inputHandler = new InputHandler(_camera, this);
         }
 
-        protected override void LoadContent()
+        private void LoadContent()
         {
-            var font = Content.Load<SpriteFont>("Default");
-            var spriteLoader = new SpriteLoader(GraphicsDevice);
+            _font = Raylib.LoadFont("resources/fonts/DejaVuSansMono.ttf");
+            var spriteLoader = new SpriteLoader();
             spriteLoader.LoadSprites();
-            _renderer = new GameRenderer(_spriteBatch, font, GraphicsDevice, _map, spriteLoader);
+            _renderer = new GameRenderer(_font, _map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
         }
 
-        protected override void Update(GameTime gameTime)
+        private void Update()
         {
-            _inputHandler.Update(gameTime);
-            var mouseState = Mouse.GetState();
-            _mouseWorldPos = _camera.ScreenToWorld(mouseState.Position.ToVector2());
+            _inputHandler.Update();
+            var mousePos = Raylib.GetMousePosition();
+            _mouseWorldPos = _camera.ScreenToWorld(mousePos);
             _hoveredTile = _map.GetTileAtWorldPosition(_mouseWorldPos);
-            base.Update(gameTime);
         }
 
-        protected override void Draw(GameTime gameTime)
+        private void Draw()
         {
-            GraphicsDevice.Clear(Color.Transparent);
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(Color.Black);
+            
             _renderer.DrawMap(_camera);
             _renderer.DrawGrid(_camera);
             _renderer.DrawTileHighlight(_camera, _hoveredTile);
             _renderer.DrawDebugOverlay(_camera, _hoveredTile, _mouseWorldPos);
-            base.Draw(gameTime);
+            
+            Raylib.EndDrawing();
         }
 
         public void ToggleGrid()
@@ -106,7 +110,7 @@ namespace IsometricMapViewer
 
         public void ToggleFullscreen()
         {
-            _graphics.ToggleFullScreen();
+            Raylib.ToggleFullscreen();
         }
 
         public void ToggleHotkeysDisplay()
@@ -171,15 +175,11 @@ namespace IsometricMapViewer
             _exporter.ExportToTiledMap();
         }
 
-        protected override void Dispose(bool disposing)
+        private void Dispose()
         {
-            if (disposing)
-            {
-                _renderer?.Dispose();
-                _exporter?.Dispose();
-                _spriteBatch?.Dispose();
-            }
-            base.Dispose(disposing);
+            _renderer?.Dispose();
+            _exporter?.Dispose();
+            Raylib.UnloadFont(_font);
         }
     }
 }

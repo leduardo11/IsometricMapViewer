@@ -1,19 +1,15 @@
+using System.Numerics;
 using IsometricMapViewer.Handlers;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using Raylib_cs;
 
 namespace IsometricMapViewer.Rendering
 {
-    public class GridRenderer(SpriteBatch spriteBatch, Map map, Texture2D highlightTexture)
+    public class GridRenderer(Map map)
     {
-        private readonly SpriteBatch _spriteBatch = spriteBatch;
         private readonly Map _map = map;
-        private readonly Texture2D _highlightTexture = highlightTexture;
 
         public void Draw(CameraHandler camera, bool showGridLines, bool showTileProperties)
         {
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, null, camera.TransformMatrix);
-
             if (showGridLines)
             {
                 DrawGridLines();
@@ -23,8 +19,6 @@ namespace IsometricMapViewer.Rendering
             {
                 DrawTileProperties(camera);
             }
-
-            _spriteBatch.End();
         }
 
         private void DrawGridLines()
@@ -35,15 +29,13 @@ namespace IsometricMapViewer.Rendering
             for (int x = 0; x <= _map.Width; x++)
             {
                 int posX = x * Constants.TileWidth;
-                Rectangle verticalLine = new Rectangle(posX, 0, 1, (int)mapHeight);
-                _spriteBatch.Draw(_highlightTexture, verticalLine, Color.Black);
+                Raylib.DrawLine(posX, 0, posX, (int)mapHeight, Color.Black);
             }
 
             for (int y = 0; y <= _map.Height; y++)
             {
                 int posY = y * Constants.TileHeight;
-                Rectangle horizontalLine = new Rectangle(0, posY, (int)mapWidth, 1);
-                _spriteBatch.Draw(_highlightTexture, horizontalLine, Color.Black);
+                Raylib.DrawLine(0, posY, (int)mapWidth, posY, Color.Black);
             }
         }
 
@@ -58,7 +50,7 @@ namespace IsometricMapViewer.Rendering
                 if (tile.IsTeleport) DrawTileOutline(pos, Color.Blue);
                 if (!tile.IsMoveAllowed) DrawTileOutline(pos, Color.Red);
                 if (tile.IsFarmingAllowed) DrawTileOutline(pos, Color.Green);
-                if (tile.IsWater) DrawTileOutline(pos, Color.Cyan);
+                if (tile.IsWater) DrawTileOutline(pos, new Color(0, 255, 255, 255));
             }
         }
 
@@ -66,12 +58,16 @@ namespace IsometricMapViewer.Rendering
         {
             int tileWidth = Constants.TileWidth;
             int tileHeight = Constants.TileHeight;
-            Rectangle rect = new Rectangle((int)position.X, (int)position.Y, tileWidth, tileHeight);
             int thickness = 2;
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y + rect.Height - thickness, rect.Width, thickness), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
-            _spriteBatch.Draw(_highlightTexture, new Rectangle(rect.X + rect.Width - thickness, rect.Y, thickness, rect.Height), color);
+            
+            // Top
+            Raylib.DrawRectangle((int)position.X, (int)position.Y, tileWidth, thickness, color);
+            // Bottom
+            Raylib.DrawRectangle((int)position.X, (int)position.Y + tileHeight - thickness, tileWidth, thickness, color);
+            // Left
+            Raylib.DrawRectangle((int)position.X, (int)position.Y, thickness, tileHeight, color);
+            // Right
+            Raylib.DrawRectangle((int)position.X + tileWidth - thickness, (int)position.Y, thickness, tileHeight, color);
         }
 
         private static Vector2 ToScreenCoordinates(int tileX, int tileY)

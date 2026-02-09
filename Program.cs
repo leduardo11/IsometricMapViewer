@@ -1,2 +1,4 @@
-﻿using var game = new IsometricMapViewer.MainGame();
+﻿using IsometricMapViewer;
+
+var game = new MainGame();
 game.Run();

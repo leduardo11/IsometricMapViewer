@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Numerics;
 using IsometricMapViewer.Handlers;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using Raylib_cs;
 
 namespace IsometricMapViewer
 {
@@ -53,7 +52,6 @@ namespace IsometricMapViewer
                     }
                 }
 
-
                 for (int y = 0; y < Height; y++)
                 {
                     for (int x = 0; x < Width; x++)
@@ -81,15 +79,12 @@ namespace IsometricMapViewer
                 .Select(t => (int)t.ObjectSprite)
                 .Where(id => id != -1));
 
-            // Identify missing sprites
             var missingTileSprites = usedTileSprites.Where(id => !loadedTiles.ContainsKey(id)).ToList();
             var missingObjectSprites = usedObjectSprites.Where(id => !loadedTiles.ContainsKey(id)).ToList();
 
-            // Calculate loaded counts
             int loadedTileSpritesCount = usedTileSprites.Count - missingTileSprites.Count;
             int loadedObjectSpritesCount = usedObjectSprites.Count - missingObjectSprites.Count;
 
-            // Log summary
             ConsoleLogger.LogInfo("🟢 Map Loading Summary:");
             ConsoleLogger.LogInfo($"  - Total Unique Tile Sprites Used: {usedTileSprites.Count}");
             ConsoleLogger.LogInfo($"  - Loaded Tile Sprites: {loadedTileSpritesCount}");
@@ -150,10 +145,11 @@ namespace IsometricMapViewer
 
         public IEnumerable<MapTile> GetVisibleTiles(Rectangle viewBounds)
         {
-            int startX = Math.Max(0, viewBounds.Left);
-            int endX = Math.Min(Width, viewBounds.Right);
-            int startY = Math.Max(0, viewBounds.Top);
-            int endY = Math.Min(Height, viewBounds.Bottom);
+            int startX = Math.Max(0, (int)viewBounds.X);
+            int endX = Math.Min(Width, (int)(viewBounds.X + viewBounds.Width));
+            int startY = Math.Max(0, (int)viewBounds.Y);
+            int endY = Math.Min(Height, (int)(viewBounds.Y + viewBounds.Height));
+            
             for (int y = startY; y < endY; y++)
             {
                 for (int x = startX; x < endX; x++)
@@ -179,7 +175,6 @@ namespace IsometricMapViewer
                 using var stream = File.OpenWrite(amdFilePath);
                 using var writer = new BinaryWriter(stream);
 
-                // Write header
                 string header = $"MAPSIZEX={Width},MAPSIZEY={Height}\0";
                 byte[] headerBytes = System.Text.Encoding.ASCII.GetBytes(header);
 
@@ -196,7 +191,6 @@ namespace IsometricMapViewer
                     writer.Write(new byte[padding]);
                 }
 
-                // Write tile data
                 for (int y = 0; y < Height; y++)
                 {
                     for (int x = 0; x < Width; x++)
@@ -212,7 +206,7 @@ namespace IsometricMapViewer
                         if (tile.IsFarmingAllowed) flags |= 0x20;
                         if (tile.IsWater) flags |= 0x10;
                         writer.Write(flags);
-                        writer.Write((byte)0); // Byte 9, assumed unused
+                        writer.Write((byte)0);
                     }
                 }
             }
@@ -290,8 +284,6 @@ namespace IsometricMapViewer
         }
     }
 
-
-
     public struct TileProperties
     {
         public bool IsMoveAllowed;
@@ -327,6 +319,6 @@ namespace IsometricMapViewer
 
     public class Tile(Texture2D texture)
     {
-        public Texture2D Texture { get; } = texture ?? throw new ArgumentNullException(nameof(texture), "Tile texture cannot be null");
+        public Texture2D Texture { get; } = texture;
     }
 }
