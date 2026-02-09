@@ -21,13 +21,16 @@ Simple Gothic-themed tool to export .amd maps to BudgetDungeon JSON format.
 dotnet run
 ```
 
-3. **Export** - Click "Export Map" button or press `E`
+3. **Export**:
+   - Click **Export Grid** or press `G` for server (JSON)
+   - Click **Export PNG** or press `P` for client (image)
 
 ## Controls
 
 | Key/Action | Function |
 |------------|----------|
-| **E** | Quick export |
+| **G** | Export Grid (JSON for server) |
+| **P** | Export PNG (image for client) |
 | **F** | Fit map to screen |
 | **TAB** | Toggle UI |
 | **WASD / Arrows** | Pan camera |
@@ -36,12 +39,18 @@ dotnet run
 
 ## UI Buttons
 
-- **Export Map** - Export current map to JSON
+- **Export Grid** - Export JSON grid data for BudgetDungeon server
+- **Export PNG** - Export PNG image for BudgetDungeon client
 - **Show/Hide Objects** - Toggle object layer visibility
 - **Show/Hide Grid** - Toggle grid overlay
 - **Fit Map** - Reset camera to fit entire map
 
-## Output Format
+## Output Files
+
+For each map, two files are generated:
+
+### 1. Grid JSON (for server)
+`{mapname}.json` - Collision and tile type data
 
 ```json
 {
@@ -59,6 +68,9 @@ dotnet run
 **Tile Types**: WALKABLE (0), BLOCKED (1), TELEPORT (2), FARM (3), WATER (4)
 
 Only non-walkable tiles are exported (space-efficient).
+
+### 2. PNG Image (for client)
+`{mapname}.png` - Full visual map with all sprites and objects
 
 ## CLI Export
 

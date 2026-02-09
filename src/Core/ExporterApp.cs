@@ -93,9 +93,12 @@ namespace IsometricMapViewer
             // Camera controls
             HandleCameraControls();
 
-            // Quick export
-            if (Raylib.IsKeyPressed(KeyboardKey.E))
-                ExportCurrentMap();
+            // Quick export shortcuts
+            if (Raylib.IsKeyPressed(KeyboardKey.G))
+                ExportGrid();
+            
+            if (Raylib.IsKeyPressed(KeyboardKey.P))
+                ExportPNG();
         }
 
         private void HandleCameraControls()
@@ -180,16 +183,27 @@ namespace IsometricMapViewer
             int panelY = 50;
             int buttonY = panelY + 10;
 
-            var panelBounds = new Rectangle(panelX, panelY, panelWidth, 300);
+            var panelBounds = new Rectangle(panelX, panelY, panelWidth, 360);
             GothicUI.Panel(panelBounds, "");
 
-            // Export button
+            // Export Grid button (JSON for server)
             if (GothicUI.Button(new Rectangle(panelX + 10, buttonY, panelWidth - 20, UIConfig.BUTTON_HEIGHT), 
-                "Export Map"))
+                "Export Grid"))
             {
-                ExportCurrentMap();
+                ExportGrid();
             }
             buttonY += UIConfig.BUTTON_HEIGHT + UIConfig.SPACING;
+
+            // Export PNG button (for client)
+            if (GothicUI.Button(new Rectangle(panelX + 10, buttonY, panelWidth - 20, UIConfig.BUTTON_HEIGHT), 
+                "Export PNG"))
+            {
+                ExportPNG();
+            }
+            buttonY += UIConfig.BUTTON_HEIGHT + UIConfig.SPACING;
+
+            // Separator
+            buttonY += 10;
 
             // Toggle Objects button
             string objectsText = _renderer.ShowObjects ? "Hide Objects" : "Show Objects";
@@ -217,7 +231,7 @@ namespace IsometricMapViewer
             }
 
             // Bottom help text
-            string help = "TAB: Toggle UI  |  E: Export  |  F: Fit  |  WASD: Pan  |  Mouse: Drag/Zoom";
+            string help = "TAB: Toggle UI  |  G: Export Grid  |  P: Export PNG  |  F: Fit  |  WASD: Pan";
             int helpY = screenH - 30;
             Raylib.DrawRectangle(0, helpY - 5, screenW, 35, new Color(25, 25, 30, 200));
             Raylib.DrawText(help, 11, helpY + 1, UIConfig.FONT_SMALL, ColorKeys.Shadow);
@@ -263,7 +277,7 @@ namespace IsometricMapViewer
             }
         }
 
-        private void ExportCurrentMap()
+        private void ExportGrid()
         {
             if (_map == null || _exporter == null) return;
 
@@ -276,11 +290,36 @@ namespace IsometricMapViewer
                 var jsonPath = Path.Combine(mapFolder, $"{mapName}.json");
                 _exporter.ExportJsonOnly(jsonPath, mapName);
 
-                ShowStatus($"✓ Exported to {mapFolder}");
+                ShowStatus($"✓ Grid exported to {mapFolder}");
             }
             catch (Exception ex)
             {
-                ShowStatus($"Export failed: {ex.Message}");
+                ShowStatus($"Grid export failed: {ex.Message}");
+            }
+        }
+
+        private void ExportPNG()
+        {
+            if (_map == null || _renderer == null) return;
+
+            try
+            {
+                string mapName = _settings.MapExporter.MapName;
+                var mapFolder = Path.Combine(_settings.MapExporter.OutputPath, mapName);
+                Directory.CreateDirectory(mapFolder);
+
+                var pngPath = Path.Combine(mapFolder, $"{mapName}.png");
+                
+                // Render full map to image
+                Image mapImage = _renderer.RenderFullMapToImage();
+                Raylib.ExportImage(mapImage, pngPath);
+                Raylib.UnloadImage(mapImage);
+
+                ShowStatus($"✓ PNG exported to {mapFolder}");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"PNG export failed: {ex.Message}");
             }
         }
 
