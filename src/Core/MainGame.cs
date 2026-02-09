@@ -16,6 +16,7 @@ namespace IsometricMapViewer
         private Map _map;
         private GameRenderer _renderer;
         private MapExporter _exporter;
+        private BudgetDungeonExporter _budgetDungeonExporter;
         private MapTile _hoveredTile;
         private string _mapPath;
         private static readonly string MapsFolder = Path.Combine("resources", "maps");
@@ -75,6 +76,7 @@ namespace IsometricMapViewer
             spriteLoader.LoadSprites();
             _renderer = new GameRenderer(_font, _map, spriteLoader);
             _exporter = new MapExporter(_renderer, _map);
+            _budgetDungeonExporter = new BudgetDungeonExporter(_renderer, _map);
         }
 
         private void Update()
@@ -173,6 +175,11 @@ namespace IsometricMapViewer
         public void ExportMapToTsx()
         {
             _exporter.ExportToTiledMap();
+        }
+
+        public void ExportForBudgetDungeon()
+        {
+            _budgetDungeonExporter.ExportForBudgetDungeon(Constants.OutputPath, Constants.MapName);
         }
 
         private void Dispose()

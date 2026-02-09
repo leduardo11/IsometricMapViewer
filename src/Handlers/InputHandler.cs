@@ -17,6 +17,7 @@ namespace IsometricMapViewer.Handlers
         private bool _wasCtrlTPressed;
         private bool _wasCtrlOPressed;
         private bool _wasCtrlSPressed;
+        private bool _wasCtrlBPressed;
         private bool _wasCtrlMPressed;
         private bool _wasCtrlEPressed;
         private bool _wasCtrlFPressed;
@@ -37,6 +38,7 @@ namespace IsometricMapViewer.Handlers
                 { KeyboardKey.T, () => _game.ExportMapToTsx() },
                 { KeyboardKey.O, () => _game.ExportObjectsToPng() },
                 { KeyboardKey.S, () => _game.SaveMap() },
+                { KeyboardKey.B, () => _game.ExportForBudgetDungeon() },
                 { KeyboardKey.M, () => ToggleTileProperty(t => (!t.IsMoveAllowed, t.IsTeleport, t.IsFarmingAllowed, t.IsWater)) },
                 { KeyboardKey.E, () => ToggleTileProperty(t => (t.IsMoveAllowed, !t.IsTeleport, t.IsFarmingAllowed, t.IsWater)) },
                 { KeyboardKey.F, () => ToggleTileProperty(t => (t.IsMoveAllowed, t.IsTeleport, !t.IsFarmingAllowed, t.IsWater)) },
@@ -84,6 +86,10 @@ namespace IsometricMapViewer.Handlers
                 if (isCtrlSDown && !_wasCtrlSPressed) _ctrlHotkeys[KeyboardKey.S].Invoke();
                 _wasCtrlSPressed = isCtrlSDown;
 
+                bool isCtrlBDown = Raylib.IsKeyDown(KeyboardKey.B);
+                if (isCtrlBDown && !_wasCtrlBPressed) _ctrlHotkeys[KeyboardKey.B].Invoke();
+                _wasCtrlBPressed = isCtrlBDown;
+
                 bool isCtrlMDown = Raylib.IsKeyDown(KeyboardKey.M);
                 if (isCtrlMDown && !_wasCtrlMPressed) _ctrlHotkeys[KeyboardKey.M].Invoke();
                 _wasCtrlMPressed = isCtrlMDown;
@@ -106,6 +112,7 @@ namespace IsometricMapViewer.Handlers
                 _wasCtrlTPressed = false;
                 _wasCtrlOPressed = false;
                 _wasCtrlSPressed = false;
+                _wasCtrlBPressed = false;
                 _wasCtrlMPressed = false;
                 _wasCtrlEPressed = false;
                 _wasCtrlFPressed = false;

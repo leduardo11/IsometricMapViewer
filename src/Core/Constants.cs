@@ -6,6 +6,7 @@ namespace IsometricMapViewer
         public const string MapName = "arefarm";
         public const int TileWidth = 32;
         public const int TileHeight = 32;
+        public const int TileSize = 32;
         public const int ExpectedTileSize = 10;
         public const int HeaderBufferSize = 256;
 
@@ -30,6 +31,7 @@ namespace IsometricMapViewer
          ("Ctrl + T", "Export Map to TSX/TMX"),
          ("Ctrl + O", "Export Objects to PNG"),
          ("Ctrl + S", "Save Map"),
+         ("Ctrl + B", "Export for BudgetDungeon"),
          ("Ctrl + M", "Toggle Movement Allowed"),
          ("Ctrl + E", "Toggle Teleport"),
          ("Ctrl + F", "Toggle Farming Allowed"),
