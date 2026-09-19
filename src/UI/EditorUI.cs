@@ -8,12 +8,14 @@ namespace IsometricMapViewer.UI;
 
 public static class EditorUI
 {
-    private static readonly Color BgDark = new(20, 22, 28, 235);
+    private static readonly Color BgDark = new(20, 22, 28, 240);
     private static readonly Color BgPill = new(40, 44, 55, 220);
     private static readonly Color BgPillActive = new(60, 110, 200, 230);
     private static readonly Color TextWhite = new(240, 240, 245, 255);
     private static readonly Color TextMuted = new(160, 165, 180, 255);
     private static readonly Color BorderDark = new(60, 65, 80, 255);
+    private static readonly Color AccentGold = new(255, 205, 90, 255);
+    private static readonly Color AccentCyan = new(100, 210, 255, 255);
 
     public static void Draw(Map map, CameraHandler camera, EditorState state, CommandHistory history, Font font)
     {
@@ -29,20 +31,20 @@ public static class EditorUI
         int curX = 16;
         int curY = 14;
 
-        // Map Title & Info
+        // Left Section: Map Title & Info
         string title = $"{Constants.MapName} ({map.Width}x{map.Height})";
         Raylib.DrawTextEx(font, title, new Vector2(curX, curY), 18, 1, TextWhite);
-        curX += (int)Raylib.MeasureTextEx(font, title, 18, 1).X + 24;
+        curX += (int)Raylib.MeasureTextEx(font, title, 18, 1).X + 20;
 
         // Cursor Coordinates
         string coordText = state.IsHoverValid ? $"[{state.HoverCellX}, {state.HoverCellY}]" : "[--, --]";
-        Raylib.DrawTextEx(font, coordText, new Vector2(curX, curY + 2), 16, 1, Color.Yellow);
-        curX += (int)Raylib.MeasureTextEx(font, coordText, 16, 1).X + 20;
+        Raylib.DrawTextEx(font, coordText, new Vector2(curX, curY + 2), 16, 1, AccentGold);
+        curX += (int)Raylib.MeasureTextEx(font, coordText, 16, 1).X + 16;
 
         // Zoom level
         string zoomText = $"Zoom: {(int)(camera.Zoom * 100)}%";
-        Raylib.DrawTextEx(font, zoomText, new Vector2(curX, curY + 2), 16, 1, TextMuted);
-        curX += (int)Raylib.MeasureTextEx(font, zoomText, 16, 1).X + 24;
+        Raylib.DrawTextEx(font, zoomText, new Vector2(curX, curY + 2), 16, 1, AccentCyan);
+        curX += (int)Raylib.MeasureTextEx(font, zoomText, 16, 1).X + 20;
 
         // Separator
         Raylib.DrawLine(curX, 8, curX, 40, BorderDark);
@@ -60,18 +62,29 @@ public static class EditorUI
         Raylib.DrawLine(curX, 8, curX, 40, BorderDark);
         curX += 16;
 
-        // Palette Toggle Button
-        DrawTogglePill(font, "Palette (Tab)", state.ShowPalette, curX, 10, () => state.ShowPalette = !state.ShowPalette);
+        // Palette and Legend Toggle Buttons
+        curX = DrawTogglePill(font, "Palette [Tab]", state.ShowPalette, curX, 10, () => state.ShowPalette = !state.ShowPalette);
+        curX = DrawTogglePill(font, "Legend [H]", state.ShowLegend, curX, 10, () => state.ShowLegend = !state.ShowLegend);
 
-        // Undo / Redo indicator (Right-aligned)
+        // Right Section: Undo / Redo indicator
         string undoRedoText = $"Undo ({history.UndoCount}) ^Z | Redo ({history.RedoCount}) ^Y";
         float urW = Raylib.MeasureTextEx(font, undoRedoText, 15, 1).X;
-        Raylib.DrawTextEx(font, undoRedoText, new Vector2(screenW - urW - 16, curY + 2), 15, 1, TextMuted);
+        int urX = screenW - (int)urW - 20;
+        if (urX > curX + 10)
+        {
+            Raylib.DrawTextEx(font, undoRedoText, new Vector2(urX, curY + 2), 15, 1, TextMuted);
+        }
 
-        // 2. Left Tool Dock (Tool selector & brush properties)
+        // 2. Left Tool Dock
         DrawToolDock(font, state, history);
 
-        // 3. Status Toast Notification (Centered bottom)
+        // 3. Left Legend Dock (Shortcuts & Options Cheat-Sheet)
+        if (state.ShowLegend)
+        {
+            DrawLegendDock(font, state);
+        }
+
+        // 4. Status Toast Notification (Centered bottom)
         if (state.StatusTimer > 0f && !string.IsNullOrEmpty(state.StatusMessage))
         {
             DrawToast(font, state.StatusMessage, screenW, screenH);
@@ -80,17 +93,17 @@ public static class EditorUI
 
     private static void DrawToolDock(Font font, EditorState state, CommandHistory history)
     {
-        int dockW = 200;
-        int dockH = 280;
+        int dockW = 240;
+        int dockH = 260;
         int dockX = 16;
-        int dockY = 64;
+        int dockY = 60;
 
         Raylib.DrawRectangle(dockX, dockY, dockW, dockH, BgDark);
         Raylib.DrawRectangleLines(dockX, dockY, dockW, dockH, BorderDark);
 
-        int y = dockY + 12;
-        Raylib.DrawTextEx(font, "TOOLS [1-5]", new Vector2(dockX + 14, y), 14, 1, TextMuted);
-        y += 24;
+        int y = dockY + 10;
+        Raylib.DrawTextEx(font, "TOOLS [1 - 5]", new Vector2(dockX + 14, y), 14, 1, AccentCyan);
+        y += 22;
 
         y = DrawToolItem(font, "[1] Ground Brush", EditorTool.GroundBrush, state, dockX + 12, y, dockW - 24);
         y = DrawToolItem(font, "[2] Place Object", EditorTool.ObjectPlacer, state, dockX + 12, y, dockW - 24);
@@ -98,26 +111,83 @@ public static class EditorUI
         y = DrawToolItem(font, "[4] Eraser", EditorTool.Eraser, state, dockX + 12, y, dockW - 24);
         y = DrawToolItem(font, "[5] Eyedropper", EditorTool.Eyedropper, state, dockX + 12, y, dockW - 24);
 
-        y += 10;
+        y += 6;
         Raylib.DrawLine(dockX + 12, y, dockX + dockW - 12, y, BorderDark);
-        y += 12;
+        y += 10;
 
         // Current Brush / Selection info
         if (state.ActiveTool == EditorTool.GroundBrush)
         {
-            Raylib.DrawTextEx(font, $"Ground: {state.SelectedGroundSprite}:{state.SelectedGroundFrame}", new Vector2(dockX + 14, y), 14, 1, TextWhite);
+            Raylib.DrawTextEx(font, $"Ground: #{state.SelectedGroundSprite} (F:{state.SelectedGroundFrame})", new Vector2(dockX + 14, y), 14, 1, TextWhite);
         }
         else if (state.ActiveTool == EditorTool.ObjectPlacer)
         {
-            Raylib.DrawTextEx(font, $"Object: {state.SelectedObjectSprite}:{state.SelectedObjectFrame}", new Vector2(dockX + 14, y), 14, 1, TextWhite);
+            Raylib.DrawTextEx(font, $"Object: #{state.SelectedObjectSprite} (F:{state.SelectedObjectFrame})", new Vector2(dockX + 14, y), 14, 1, TextWhite);
         }
         else if (state.ActiveTool == EditorTool.CollisionPainter)
         {
-            Raylib.DrawTextEx(font, $"Mode: {state.ActiveCollisionMode}", new Vector2(dockX + 14, y), 14, 1, Color.Orange);
+            Color col = state.ActiveCollisionMode switch
+            {
+                CollisionPaintMode.Blocked => Color.Red,
+                CollisionPaintMode.Water => Color.SkyBlue,
+                CollisionPaintMode.Walkable => Color.Green,
+                CollisionPaintMode.Teleport => Color.Magenta,
+                CollisionPaintMode.Farm => Color.Lime,
+                _ => Color.White
+            };
+            Raylib.DrawTextEx(font, $"Collision: {state.ActiveCollisionMode}", new Vector2(dockX + 14, y), 14, 1, col);
         }
 
         y += 20;
-        Raylib.DrawTextEx(font, $"Brush: {state.BrushSize}x{state.BrushSize} [B]", new Vector2(dockX + 14, y), 14, 1, TextMuted);
+        Raylib.DrawTextEx(font, $"Brush: {state.BrushSize}x{state.BrushSize} [B to cycle]", new Vector2(dockX + 14, y), 13, 1, AccentGold);
+    }
+
+    private static void DrawLegendDock(Font font, EditorState state)
+    {
+        int dockW = 240;
+        int dockH = 360;
+        int dockX = 16;
+        int dockY = 328;
+
+        Raylib.DrawRectangle(dockX, dockY, dockW, dockH, BgDark);
+        Raylib.DrawRectangleLines(dockX, dockY, dockW, dockH, BorderDark);
+
+        int y = dockY + 10;
+        Raylib.DrawTextEx(font, "CONTROLS & SHORTCUTS [H]", new Vector2(dockX + 14, y), 14, 1, AccentGold);
+        y += 22;
+
+        DrawLegendLine(font, "[ / ]", "Cycle Sprite (PgUp/Dn)", dockX + 14, y); y += 22;
+        DrawLegendLine(font, ", / .", "Cycle Frame (< / >)", dockX + 14, y); y += 22;
+        DrawLegendLine(font, "B", "Cycle Brush (1x1..3x3)", dockX + 14, y); y += 22;
+        DrawLegendLine(font, "Tab", "Toggle Sprite Palette", dockX + 14, y); y += 22;
+
+        y += 4;
+        Raylib.DrawLine(dockX + 12, y, dockX + dockW - 12, y, BorderDark);
+        y += 8;
+
+        Raylib.DrawTextEx(font, "COLLISION KEYS", new Vector2(dockX + 14, y), 12, 1, AccentCyan);
+        y += 18;
+        DrawLegendLine(font, "M / K", "Blocked / Walkable", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "W / L", "Water / Teleport", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "R", "Farming Zone", dockX + 14, y); y += 20;
+
+        y += 4;
+        Raylib.DrawLine(dockX + 12, y, dockX + dockW - 12, y, BorderDark);
+        y += 8;
+
+        Raylib.DrawTextEx(font, "PROJECT & CAMERA", new Vector2(dockX + 14, y), 12, 1, AccentCyan);
+        y += 18;
+        DrawLegendLine(font, "^S", "Save Map (.amd)", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "^E", "Export map@2 (rpg)", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "^Z / ^Y", "Undo / Redo", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "R-Drag", "Pan  | Wheel: Zoom", dockX + 14, y);
+    }
+
+    private static void DrawLegendLine(Font font, string badge, string desc, int x, int y)
+    {
+        Raylib.DrawTextEx(font, badge, new Vector2(x, y), 13, 1, AccentGold);
+        int badgeW = (int)Raylib.MeasureTextEx(font, badge, 13, 1).X;
+        Raylib.DrawTextEx(font, desc, new Vector2(x + Math.Max(badgeW + 8, 56), y), 13, 1, TextWhite);
     }
 
     private static int DrawToolItem(Font font, string label, EditorTool tool, EditorState state, int x, int y, int w)

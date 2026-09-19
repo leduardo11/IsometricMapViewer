@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using IsometricMapViewer.Editor;
+using IsometricMapViewer.Loaders;
 using Raylib_cs;
 
 namespace IsometricMapViewer.Handlers;
@@ -11,17 +14,19 @@ public class EditorInputHandler
     private readonly CameraHandler _camera;
     private readonly EditorState _state;
     private readonly CommandHistory _history;
+    private readonly SpriteLoader _spriteLoader;
     private readonly Action _onSave;
     private readonly Action _onExportV2;
 
     private BatchEditorCommand? _activeStroke;
-    private readonly System.Collections.Generic.HashSet<(int X, int Y)> _strokeVisited = [];
+    private readonly HashSet<(int X, int Y)> _strokeVisited = [];
 
     public EditorInputHandler(
         Map map,
         CameraHandler camera,
         EditorState state,
         CommandHistory history,
+        SpriteLoader spriteLoader,
         Action onSave,
         Action onExportV2)
     {
@@ -29,8 +34,39 @@ public class EditorInputHandler
         _camera = camera;
         _state = state;
         _history = history;
+        _spriteLoader = spriteLoader;
         _onSave = onSave;
         _onExportV2 = onExportV2;
+
+        PopulateAvailableSprites();
+    }
+
+    private void PopulateAvailableSprites()
+    {
+        if (_state.AvailableGroundSprites.Count == 0 || _state.AvailableObjectSprites.Count == 0)
+        {
+            _state.AvailableGroundSprites.Clear();
+            _state.AvailableObjectSprites.Clear();
+
+            foreach (var sprite in _spriteLoader.GetAllSprites())
+            {
+                if (sprite.Texture.Id == 0) continue;
+
+                if ((sprite.Index >= 51 && sprite.Index <= 96) ||
+                    (sprite.Index >= 100 && sprite.Index <= 145) ||
+                    (sprite.Index >= 200 && sprite.Index <= 248))
+                {
+                    _state.AvailableObjectSprites.Add((short)sprite.Index);
+                }
+                else if (sprite.Index != 150)
+                {
+                    _state.AvailableGroundSprites.Add((short)sprite.Index);
+                }
+            }
+
+            _state.AvailableGroundSprites.Sort();
+            _state.AvailableObjectSprites.Sort();
+        }
     }
 
     public void Update()
@@ -63,16 +99,16 @@ public class EditorInputHandler
         if (!_state.ShowUI) return false;
 
         int screenW = Raylib.GetScreenWidth();
-        int screenH = Raylib.GetScreenHeight();
 
         // Top Navigation Bar
         if (mouse.Y < 48) return true;
 
-        // Left Tool Dock
-        if (mouse.X >= 16 && mouse.X <= 216 && mouse.Y >= 64 && mouse.Y <= 344) return true;
+        // Left Tool Dock & Legend Panel
+        int maxDockY = _state.ShowLegend ? 670 : 350;
+        if (mouse.X >= 16 && mouse.X <= 286 && mouse.Y >= 64 && mouse.Y <= maxDockY) return true;
 
         // Right Palette Panel
-        if (_state.ShowPalette && mouse.X >= screenW - 340) return true;
+        if (_state.ShowPalette && mouse.X >= screenW - 350) return true;
 
         return false;
     }
@@ -136,13 +172,19 @@ public class EditorInputHandler
             _onExportV2();
         }
 
-        // Palette Toggle
+        // Palette Toggle [Tab]
         if (Raylib.IsKeyPressed(KeyboardKey.Tab))
         {
             _state.ShowPalette = !_state.ShowPalette;
         }
 
-        // Brush Size Cycle
+        // Legend Toggle [H] or [F1]
+        if (!ctrl && (Raylib.IsKeyPressed(KeyboardKey.H) || Raylib.IsKeyPressed(KeyboardKey.F1)))
+        {
+            _state.ShowLegend = !_state.ShowLegend;
+        }
+
+        // Brush Size Cycle [B]
         if (!ctrl && Raylib.IsKeyPressed(KeyboardKey.B))
         {
             _state.BrushSize = (_state.BrushSize % 3) + 1;
@@ -162,6 +204,30 @@ public class EditorInputHandler
         if (!ctrl && Raylib.IsKeyPressed(KeyboardKey.O)) _state.ShowObjects = !_state.ShowObjects;
         if (!ctrl && Raylib.IsKeyPressed(KeyboardKey.T)) _state.ShowTrees = !_state.ShowTrees;
         if (!ctrl && Raylib.IsKeyPressed(KeyboardKey.C)) _state.ShowCollision = !_state.ShowCollision;
+
+        // Sprite Cycling: [ / ] or PageDown / PageUp
+        if (Raylib.IsKeyPressed(KeyboardKey.LeftBracket) || Raylib.IsKeyPressed(KeyboardKey.PageDown))
+        {
+            _state.CycleSprite(-1);
+        }
+        else if (Raylib.IsKeyPressed(KeyboardKey.RightBracket) || Raylib.IsKeyPressed(KeyboardKey.PageUp))
+        {
+            _state.CycleSprite(+1);
+        }
+
+        // Frame Cycling: , / . or Home / End
+        if (Raylib.IsKeyPressed(KeyboardKey.Comma) || Raylib.IsKeyPressed(KeyboardKey.Home))
+        {
+            int spriteId = _state.ActiveTool == EditorTool.GroundBrush ? _state.SelectedGroundSprite : _state.SelectedObjectSprite;
+            int frameCount = _spriteLoader.GetSpriteFrameCount(spriteId);
+            _state.CycleFrame(-1, frameCount);
+        }
+        else if (Raylib.IsKeyPressed(KeyboardKey.Period) || Raylib.IsKeyPressed(KeyboardKey.End))
+        {
+            int spriteId = _state.ActiveTool == EditorTool.GroundBrush ? _state.SelectedGroundSprite : _state.SelectedObjectSprite;
+            int frameCount = _spriteLoader.GetSpriteFrameCount(spriteId);
+            _state.CycleFrame(+1, frameCount);
+        }
 
         // Collision Paint Mode Selection (when in collision tool)
         if (_state.ActiveTool == EditorTool.CollisionPainter)

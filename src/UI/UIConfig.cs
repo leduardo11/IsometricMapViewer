@@ -3,9 +3,9 @@ namespace IsometricMapViewer.UI;
 public static class UIConfig
 {
     // Window
-    public const string WINDOW_TITLE = "BudgetDungeon Map Exporter";
-    public const int WINDOW_WIDTH = 1280;
-    public const int WINDOW_HEIGHT = 720;
+    public const string WINDOW_TITLE = "Helbreath Isometric Map Editor";
+    public const int WINDOW_WIDTH = 1600;
+    public const int WINDOW_HEIGHT = 900;
     
     // Font Sizes
     public const int FONT_SMALL = 14;

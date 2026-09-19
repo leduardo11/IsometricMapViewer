@@ -33,6 +33,16 @@ namespace IsometricMapViewer.Loaders
             }
         }
 
+        public int GetSpriteFrameCount(int spriteId)
+        {
+            foreach (var spriteFile in _spriteFiles.Values)
+            {
+                var sprite = spriteFile.GetSpriteById(spriteId);
+                if (sprite != null) return sprite.Frames.Count;
+            }
+            return 1;
+        }
+
         public Constants.SpriteFrame GetSpriteFrame(int spriteId, int frameIndex)
         {
             foreach (var spriteFile in _spriteFiles.Values)

@@ -48,6 +48,7 @@ public class ExporterApp
 
     public void Run()
     {
+        Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
         Raylib.InitWindow(UIConfig.WINDOW_WIDTH, UIConfig.WINDOW_HEIGHT, UIConfig.WINDOW_TITLE);
         Raylib.SetTargetFPS(60);
 
@@ -104,6 +105,7 @@ public class ExporterApp
             _camera,
             _editorState,
             _history,
+            _spriteLoader,
             SaveMapAmd,
             ExportMapV2
         );
