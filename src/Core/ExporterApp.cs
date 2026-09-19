@@ -266,8 +266,14 @@ public class ExporterApp
                 using var proc = Process.Start(psi);
                 proc?.WaitForExit(20000);
 
-                _editorState.SetStatus($"✓ Exported map@2 to rpg_world/{mapName}");
-                ConsoleLogger.LogInfo($"map@2 exported to {rpgWorldOutDir}");
+                // Also copy the .amd alongside the exported map@2 package
+                if (Directory.Exists(rpgWorldOutDir))
+                {
+                    File.Copy(Path.Combine("resources", "maps", $"{mapName}.amd"), Path.Combine(rpgWorldOutDir, $"{mapName}.amd"), overwrite: true);
+                }
+
+                _editorState.SetStatus($"✓ Exported map@2 & AMD to rpg_world/{mapName}");
+                ConsoleLogger.LogInfo($"map@2 and AMD exported to {rpgWorldOutDir}");
             }
             else
             {

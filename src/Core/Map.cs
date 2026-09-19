@@ -172,7 +172,7 @@ namespace IsometricMapViewer
         {
             try
             {
-                using var stream = File.OpenWrite(amdFilePath);
+                using var stream = File.Create(amdFilePath);
                 using var writer = new BinaryWriter(stream);
 
                 string header = $"MAPSIZEX={Width},MAPSIZEY={Height}\0";
