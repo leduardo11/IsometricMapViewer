@@ -240,6 +240,24 @@ namespace IsometricMapViewer
                 }
             }
         }
+
+        public void SetGround(int x, int y, short sprite, short frame)
+        {
+            if (x >= 0 && x < Width && y >= 0 && y < Height)
+                Tiles[x, y].SetGround(sprite, frame);
+        }
+
+        public void SetObject(int x, int y, short sprite, short frame)
+        {
+            if (x >= 0 && x < Width && y >= 0 && y < Height)
+                Tiles[x, y].SetObject(sprite, frame);
+        }
+
+        public void ClearObject(int x, int y)
+        {
+            if (x >= 0 && x < Width && y >= 0 && y < Height)
+                Tiles[x, y].ClearObject();
+        }
     }
 
     public class MapTile(int x, int y)
@@ -273,6 +291,27 @@ namespace IsometricMapViewer
             tile.IsFarmingAllowed = (flags & 0x20) != 0;
             tile.IsWater = (flags & 0x10) != 0;
             return tile;
+        }
+
+        public bool IsTree => ObjectSprite >= Constants.TreeSpriteStart && ObjectSprite <= Constants.TreeSpriteEnd;
+        public short ShadowSprite => IsTree ? (short)(ObjectSprite + Constants.TreeShadowOffset) : (short)-1;
+
+        public void SetGround(short sprite, short frame)
+        {
+            TileSprite = sprite;
+            TileFrame = frame;
+        }
+
+        public void SetObject(short sprite, short frame)
+        {
+            ObjectSprite = sprite;
+            ObjectFrame = frame;
+        }
+
+        public void ClearObject()
+        {
+            ObjectSprite = -1;
+            ObjectFrame = 0;
         }
 
         public void SetProperties(bool isMoveAllowed, bool isTeleport, bool isFarmingAllowed, bool isWater)

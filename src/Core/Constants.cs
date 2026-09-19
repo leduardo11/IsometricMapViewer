@@ -15,6 +15,19 @@ namespace IsometricMapViewer
         public const float MaxCameraZoom = 2.0f;
         public const float BaseCameraSpeed = 10.0f;
 
+        // Tree and Shadow constants
+        public const int TreeSpriteStart = 100;
+        public const int TreeSpriteEnd = 145;
+        public const int TreeShadowOffset = 50;
+        public const byte ShadowAlpha = 128;
+
+        // Collision overlay colors
+        public static readonly Raylib_cs.Color ColorBlocked = new(230, 40, 40, 100);
+        public static readonly Raylib_cs.Color ColorWater = new(40, 100, 230, 100);
+        public static readonly Raylib_cs.Color ColorTeleport = new(200, 40, 200, 100);
+        public static readonly Raylib_cs.Color ColorFarm = new(40, 200, 40, 100);
+        public static readonly Raylib_cs.Color ColorHighlight = new(255, 255, 0, 120);
+
         public struct SpriteFrame
         {
             public int Left;

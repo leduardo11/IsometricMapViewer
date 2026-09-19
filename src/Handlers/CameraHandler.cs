@@ -86,6 +86,14 @@ namespace IsometricMapViewer.Handlers
             return Raylib.GetScreenToWorld2D(screenPosition, Camera);
         }
 
+        public bool GetCellAtScreenPos(Vector2 screenPosition, out int cellX, out int cellY)
+        {
+            Vector2 worldPos = ScreenToWorld(screenPosition);
+            cellX = (int)MathF.Floor(worldPos.X / Constants.TileWidth);
+            cellY = (int)MathF.Floor(worldPos.Y / Constants.TileHeight);
+            return cellX >= 0 && cellX < _map.Width && cellY >= 0 && cellY < _map.Height;
+        }
+
         public Rectangle GetViewBounds()
         {
             int screenWidth = Raylib.GetScreenWidth();

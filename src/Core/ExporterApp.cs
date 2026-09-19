@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Numerics;
+using IsometricMapViewer.Editor;
 using IsometricMapViewer.Handlers;
 using IsometricMapViewer.Loaders;
 using IsometricMapViewer.Rendering;
@@ -8,426 +10,342 @@ using IsometricMapViewer.UI;
 using Microsoft.Extensions.Configuration;
 using Raylib_cs;
 
-namespace IsometricMapViewer
+namespace IsometricMapViewer;
+
+public class ExporterApp
 {
-    public class ExporterApp
+    private Map _map = null!;
+    private BudgetDungeonExporter _exporter = null!;
+    private CameraHandler _camera = null!;
+    private GameRenderer _renderer = null!;
+    private SpriteLoader _spriteLoader = null!;
+    private Font _font;
+    private AppSettings _settings = null!;
+
+    private EditorState _editorState = null!;
+    private CommandHistory _history = null!;
+    private EditorInputHandler _editorInputHandler = null!;
+    private PaletteUI _paletteUI = null!;
+
+    private bool _isExporting = false;
+    private string _exportingMessage = "";
+
+    public ExporterApp()
     {
-        private Map _map;
-        private BudgetDungeonExporter _exporter;
-        private CameraHandler _camera;
-        private GameRenderer _renderer;
-        private Font _font;
-        private AppSettings _settings;
-        private string _statusMessage = "";
-        private float _statusTimer = 0f;
-        private bool _showUI = true;
-        private bool _isExporting = false;
-        private string _exportingMessage = "";
+        LoadSettings();
+    }
 
-        public ExporterApp()
+    private void LoadSettings()
+    {
+        var config = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+
+        _settings = new AppSettings();
+        config.GetSection("MapExporter").Bind(_settings.MapExporter);
+    }
+
+    public void Run()
+    {
+        Raylib.InitWindow(UIConfig.WINDOW_WIDTH, UIConfig.WINDOW_HEIGHT, UIConfig.WINDOW_TITLE);
+        Raylib.SetTargetFPS(60);
+
+        Initialize();
+        LoadContent();
+
+        while (!Raylib.WindowShouldClose())
         {
-            LoadSettings();
+            Update();
+            Draw();
         }
 
-        private void LoadSettings()
-        {
-            var config = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false)
-                .Build();
+        Dispose();
+        Raylib.CloseWindow();
+    }
 
-            _settings = new AppSettings();
-            config.GetSection("MapExporter").Bind(_settings.MapExporter);
+    private void Initialize()
+    {
+        var tileLoader = new TileLoader();
+        tileLoader.PreloadAllSprites();
+
+        LoadMap(_settings.MapExporter.MapName);
+
+        if (_map != null)
+        {
+            _map.ValidateMapSprites(tileLoader.GetTiles());
+            _camera = new CameraHandler(_map);
+            _camera.FitToMap();
+        }
+    }
+
+    private void LoadContent()
+    {
+        _font = Raylib.LoadFont("resources/fonts/DejaVuSansMono.ttf");
+        _spriteLoader = new SpriteLoader();
+        _spriteLoader.LoadSprites();
+
+        _renderer = new GameRenderer(_font, _map, _spriteLoader)
+        {
+            ShowObjects = _settings.MapExporter.ShowObjects,
+            ShowGrid = _settings.MapExporter.ShowGrid
+        };
+
+        _editorState = new EditorState
+        {
+            ShowObjects = _settings.MapExporter.ShowObjects,
+            ShowGrid = _settings.MapExporter.ShowGrid
+        };
+        _history = new CommandHistory();
+        _paletteUI = new PaletteUI(_spriteLoader);
+
+        _editorInputHandler = new EditorInputHandler(
+            _map,
+            _camera,
+            _editorState,
+            _history,
+            SaveMapAmd,
+            ExportMapV2
+        );
+    }
+
+    private void Update()
+    {
+        float dt = Raylib.GetFrameTime();
+        _editorState.Update(dt);
+
+        if (_isExporting) return;
+
+        _editorInputHandler.Update();
+    }
+
+    private void Draw()
+    {
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(Color.Black);
+
+        // Draw Map with 5 layers & editor ghost
+        if (_map != null && _renderer != null)
+        {
+            _renderer.DrawEditorMap(_camera, _editorState);
         }
 
-        public void Run()
+        // Draw HUD: Navigation Bar, Tool Dock, Status Toasts
+        EditorUI.Draw(_map, _camera, _editorState, _history, _font);
+
+        // Draw Sprite Palette if open
+        _paletteUI.Draw(_editorState, _spriteLoader, _font);
+
+        // Draw export loading overlay if active
+        if (_isExporting)
+            DrawExportingOverlay();
+
+        Raylib.EndDrawing();
+    }
+
+    private void DrawExportingOverlay()
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+
+        Raylib.DrawRectangle(0, 0, screenW, screenH, new Color(0, 0, 0, 190));
+
+        int boxWidth = 500;
+        int boxHeight = 140;
+        int boxX = (screenW - boxWidth) / 2;
+        int boxY = (screenH - boxHeight) / 2;
+
+        var boxBounds = new Rectangle(boxX, boxY, boxWidth, boxHeight);
+        Raylib.DrawRectangleRec(boxBounds, new Color(25, 28, 36, 255));
+        Raylib.DrawRectangleLinesEx(boxBounds, 2, new Color(80, 140, 255, 255));
+
+        float time = (float)Raylib.GetTime();
+        int dots = ((int)(time * 2) % 4);
+        string loadingText = _exportingMessage + new string('.', dots);
+
+        int textWidth = Raylib.MeasureText(loadingText, UIConfig.FONT_LARGE);
+        int textX = boxX + (boxWidth - textWidth) / 2;
+        int textY = boxY + 36;
+
+        Raylib.DrawText(loadingText, textX, textY, UIConfig.FONT_LARGE, Color.Gold);
+
+        string infoText = "Processing map and generating packages...";
+        int infoWidth = Raylib.MeasureText(infoText, UIConfig.FONT_SMALL);
+        int infoX = boxX + (boxWidth - infoWidth) / 2;
+        int infoY = textY + 45;
+
+        Raylib.DrawText(infoText, infoX, infoY, UIConfig.FONT_SMALL, Color.LightGray);
+    }
+
+    private void LoadMap(string mapName)
+    {
+        try
         {
-            Raylib.InitWindow(UIConfig.WINDOW_WIDTH, UIConfig.WINDOW_HEIGHT, UIConfig.WINDOW_TITLE);
-            Raylib.SetTargetFPS(60);
+            var mapPath = Path.Combine("resources", "maps", $"{mapName}.amd");
+            _map = new Map();
 
-            Initialize();
-            LoadContent();
-
-            while (!Raylib.WindowShouldClose())
+            if (!_map.Load(mapPath))
             {
-                Update();
-                Draw();
-            }
-
-            Dispose();
-            Raylib.CloseWindow();
-        }
-
-        private void Initialize()
-        {
-            var tileLoader = new TileLoader();
-            tileLoader.PreloadAllSprites();
-            
-            LoadMap(_settings.MapExporter.MapName);
-            
-            if (_map != null)
-            {
-                _map.ValidateMapSprites(tileLoader.GetTiles());
-                _camera = new CameraHandler(_map);
-                _camera.FitToMap();
-            }
-        }
-
-        private void LoadContent()
-        {
-            _font = Raylib.LoadFont("resources/fonts/DejaVuSansMono.ttf");
-            var spriteLoader = new SpriteLoader();
-            spriteLoader.LoadSprites();
-            _renderer = new GameRenderer(_font, _map, spriteLoader);
-            _renderer.ShowObjects = _settings.MapExporter.ShowObjects;
-            _renderer.ShowGrid = _settings.MapExporter.ShowGrid;
-        }
-
-        private void Update()
-        {
-            if (_statusTimer > 0)
-                _statusTimer -= Raylib.GetFrameTime();
-
-            // Don't process input during export
-            if (_isExporting)
+                ConsoleLogger.LogError($"Failed to load map: {mapName}");
                 return;
+            }
 
-            // Toggle UI
-            if (Raylib.IsKeyPressed(KeyboardKey.Tab))
-                _showUI = !_showUI;
-
-            // Camera controls
-            HandleCameraControls();
-
-            // Quick export shortcuts
-            if (Raylib.IsKeyPressed(KeyboardKey.G))
-                ExportGrid();
-            
-            if (Raylib.IsKeyPressed(KeyboardKey.P))
-                ExportPNG();
+            _exporter = new BudgetDungeonExporter(null, _map);
+            ConsoleLogger.LogInfo($"Loaded map: {mapName}");
         }
-
-        private void HandleCameraControls()
+        catch (Exception ex)
         {
-            // Mouse drag
-            if (Raylib.IsMouseButtonDown(MouseButton.Right) || Raylib.IsMouseButtonDown(MouseButton.Middle))
-            {
-                var delta = Raylib.GetMouseDelta();
-                _camera.Move(new Vector2(-delta.X, -delta.Y) / _camera.Zoom);
-            }
-
-            // Mouse wheel zoom
-            float wheel = Raylib.GetMouseWheelMove();
-            if (wheel != 0)
-            {
-                float zoomFactor = wheel > 0 ? 1.1f : 0.9f;
-                _camera.ZoomAt(zoomFactor, Raylib.GetMousePosition());
-            }
-
-            // Keyboard movement
-            Vector2 movement = Vector2.Zero;
-            float speed = 10f / _camera.Zoom;
-
-            if (Raylib.IsKeyDown(KeyboardKey.W) || Raylib.IsKeyDown(KeyboardKey.Up))
-                movement.Y -= speed;
-            if (Raylib.IsKeyDown(KeyboardKey.S) || Raylib.IsKeyDown(KeyboardKey.Down))
-                movement.Y += speed;
-            if (Raylib.IsKeyDown(KeyboardKey.A) || Raylib.IsKeyDown(KeyboardKey.Left))
-                movement.X -= speed;
-            if (Raylib.IsKeyDown(KeyboardKey.D) || Raylib.IsKeyDown(KeyboardKey.Right))
-                movement.X += speed;
-
-            if (movement != Vector2.Zero)
-                _camera.Move(movement);
-
-            // Fit to map
-            if (Raylib.IsKeyPressed(KeyboardKey.F))
-                _camera.FitToMap();
+            ConsoleLogger.LogError($"Error loading map: {ex.Message}");
         }
+    }
 
-        private void Draw()
+    private void SaveMapAmd()
+    {
+        if (_map == null) return;
+        try
         {
-            Raylib.BeginDrawing();
-            Raylib.ClearBackground(Color.Black);
+            string mapName = _settings.MapExporter.MapName;
+            string mapPath = Path.Combine("resources", "maps", $"{mapName}.amd");
 
-            // Draw the map
-            if (_map != null && _renderer != null)
+            // Create backup on first edit if not yet created
+            string bakPath = mapPath + ".bak";
+            if (File.Exists(mapPath) && !File.Exists(bakPath))
             {
-                _renderer.DrawMap(_camera);
-                if (_renderer.ShowGrid)
-                    _renderer.DrawGrid(_camera);
+                File.Copy(mapPath, bakPath, overwrite: false);
             }
 
-            // Draw UI
-            if (_showUI)
-                DrawUI();
-
-            // Draw export loading overlay
-            if (_isExporting)
-                DrawExportingOverlay();
-
-            // Draw status message
-            if (_statusTimer > 0)
-                DrawStatusMessage();
-
-            Raylib.EndDrawing();
+            _map.Save(mapPath);
+            _editorState.SetStatus($"✓ Saved AMD to {mapPath}");
+            ConsoleLogger.LogInfo($"Map saved to {mapPath}");
         }
-
-        private void DrawUI()
+        catch (Exception ex)
         {
-            int screenW = Raylib.GetScreenWidth();
-            int screenH = Raylib.GetScreenHeight();
-
-            // Top bar with map info
-            var topBarBounds = new Rectangle(0, 0, screenW, 40);
-            Raylib.DrawRectangleRec(topBarBounds, new Color(25, 25, 30, 200));
-            Raylib.DrawRectangleLinesEx(topBarBounds, 1, ColorKeys.Stone);
-
-            string mapInfo = $"{_settings.MapExporter.MapName} - {_map.Width}x{_map.Height} - Zoom: {_camera.Zoom:F2}x";
-            Raylib.DrawText(mapInfo, 11, 11, UIConfig.FONT_LARGE, ColorKeys.Shadow);
-            Raylib.DrawText(mapInfo, 10, 10, UIConfig.FONT_LARGE, ColorKeys.Gold);
-
-            // Right side panel with buttons
-            int panelWidth = 200;
-            int panelX = screenW - panelWidth;
-            int panelY = 50;
-            int buttonY = panelY + 10;
-
-            var panelBounds = new Rectangle(panelX, panelY, panelWidth, 360);
-            GothicUI.Panel(panelBounds, "");
-
-            // Export Grid button (JSON for server)
-            if (GothicUI.Button(new Rectangle(panelX + 10, buttonY, panelWidth - 20, UIConfig.BUTTON_HEIGHT), 
-                "Export Grid"))
-            {
-                ExportGrid();
-            }
-            buttonY += UIConfig.BUTTON_HEIGHT + UIConfig.SPACING;
-
-            // Export PNG button (for client)
-            if (GothicUI.Button(new Rectangle(panelX + 10, buttonY, panelWidth - 20, UIConfig.BUTTON_HEIGHT), 
-                "Export PNG"))
-            {
-                ExportPNG();
-            }
-            buttonY += UIConfig.BUTTON_HEIGHT + UIConfig.SPACING;
-
-            // Separator
-            buttonY += 10;
-
-            // Toggle Objects button
-            string objectsText = _renderer.ShowObjects ? "Hide Objects" : "Show Objects";
-            if (GothicUI.Button(new Rectangle(panelX + 10, buttonY, panelWidth - 20, UIConfig.BUTTON_HEIGHT), 
-                objectsText))
-            {
-                _renderer.ShowObjects = !_renderer.ShowObjects;
-            }
-            buttonY += UIConfig.BUTTON_HEIGHT + UIConfig.SPACING;
-
-            // Toggle Grid button
-            string gridText = _renderer.ShowGrid ? "Hide Grid" : "Show Grid";
-            if (GothicUI.Button(new Rectangle(panelX + 10, buttonY, panelWidth - 20, UIConfig.BUTTON_HEIGHT), 
-                gridText))
-            {
-                _renderer.ShowGrid = !_renderer.ShowGrid;
-            }
-            buttonY += UIConfig.BUTTON_HEIGHT + UIConfig.SPACING;
-
-            // Fit Map button
-            if (GothicUI.Button(new Rectangle(panelX + 10, buttonY, panelWidth - 20, UIConfig.BUTTON_HEIGHT), 
-                "Fit Map"))
-            {
-                _camera.FitToMap();
-            }
-
-            // Bottom help text
-            string help = "TAB: Toggle UI  |  G: Export Grid  |  P: Export PNG  |  F: Fit  |  WASD: Pan";
-            int helpY = screenH - 30;
-            Raylib.DrawRectangle(0, helpY - 5, screenW, 35, new Color(25, 25, 30, 200));
-            Raylib.DrawText(help, 11, helpY + 1, UIConfig.FONT_SMALL, ColorKeys.Shadow);
-            Raylib.DrawText(help, 10, helpY, UIConfig.FONT_SMALL, ColorKeys.Bone);
+            _editorState.SetStatus($"Save error: {ex.Message}");
+            ConsoleLogger.LogError($"Error saving map: {ex.Message}");
         }
+    }
 
-        private void DrawStatusMessage()
+    private void ExportMapV2()
+    {
+        if (_map == null || _isExporting) return;
+
+        _isExporting = true;
+        _exportingMessage = "Exporting map@2 Package";
+
+        try
         {
-            int screenW = Raylib.GetScreenWidth();
-            int screenH = Raylib.GetScreenHeight();
-            
-            int textWidth = Raylib.MeasureText(_statusMessage, UIConfig.FONT_LARGE);
-            int x = (screenW - textWidth) / 2;
-            int y = screenH - 100;
+            // 1. Save AMD locally first
+            SaveMapAmd();
 
-            var bgBounds = new Rectangle(x - 20, y - 10, textWidth + 40, 40);
-            Raylib.DrawRectangleRec(bgBounds, ColorKeys.DarkStone);
-            Raylib.DrawRectangleLinesEx(bgBounds, 2, ColorKeys.Gold);
+            string mapName = _settings.MapExporter.MapName;
+            string pipelineMapDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "HelbreathAssetPipeline", "assets", "maps"));
+            string rpgWorldOutDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "rpg_world", "assets", "maps", mapName));
 
-            Raylib.DrawText(_statusMessage, x + 1, y + 1, UIConfig.FONT_LARGE, ColorKeys.Shadow);
-            Raylib.DrawText(_statusMessage, x, y, UIConfig.FONT_LARGE, ColorKeys.Gold);
-        }
-
-        private void DrawExportingOverlay()
-        {
-            int screenW = Raylib.GetScreenWidth();
-            int screenH = Raylib.GetScreenHeight();
-
-            // Semi-transparent dark overlay
-            Raylib.DrawRectangle(0, 0, screenW, screenH, new Color(0, 0, 0, 180));
-
-            // Loading box
-            int boxWidth = 500;
-            int boxHeight = 150;
-            int boxX = (screenW - boxWidth) / 2;
-            int boxY = (screenH - boxHeight) / 2;
-
-            var boxBounds = new Rectangle(boxX, boxY, boxWidth, boxHeight);
-            Raylib.DrawRectangleRec(boxBounds, ColorKeys.DarkStone);
-            Raylib.DrawRectangleLinesEx(boxBounds, 3, ColorKeys.Gold);
-
-            // Animated loading text with dots
-            float time = (float)Raylib.GetTime();
-            int dots = ((int)(time * 2) % 4);
-            string loadingText = _exportingMessage + new string('.', dots);
-            
-            int textWidth = Raylib.MeasureText(loadingText, UIConfig.FONT_LARGE);
-            int textX = boxX + (boxWidth - textWidth) / 2;
-            int textY = boxY + 40;
-
-            Raylib.DrawText(loadingText, textX + 1, textY + 1, UIConfig.FONT_LARGE, ColorKeys.Shadow);
-            Raylib.DrawText(loadingText, textX, textY, UIConfig.FONT_LARGE, ColorKeys.Gold);
-
-            // Info text
-            string infoText = "Please wait, this may take a moment for large maps";
-            int infoWidth = Raylib.MeasureText(infoText, UIConfig.FONT_SMALL);
-            int infoX = boxX + (boxWidth - infoWidth) / 2;
-            int infoY = textY + 50;
-
-            Raylib.DrawText(infoText, infoX + 1, infoY + 1, UIConfig.FONT_SMALL, ColorKeys.Shadow);
-            Raylib.DrawText(infoText, infoX, infoY, UIConfig.FONT_SMALL, ColorKeys.Bone);
-        }
-
-        private void LoadMap(string mapName)
-        {
-            try
+            // Copy updated AMD to HelbreathAssetPipeline assets if available
+            if (Directory.Exists(pipelineMapDir))
             {
-                var mapPath = Path.Combine("resources", "maps", $"{mapName}.amd");
-                _map = new Map();
-                
-                if (!_map.Load(mapPath))
+                string targetAmd = Path.Combine(pipelineMapDir, $"{mapName}.amd");
+                File.Copy(Path.Combine("resources", "maps", $"{mapName}.amd"), targetAmd, overwrite: true);
+            }
+
+            // Invoke pipeline CLI to compile map@2
+            string pipelineCliDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "HelbreathAssetPipeline", "src", "HelbreathAssetPipeline.Packer.CLI"));
+            if (Directory.Exists(pipelineCliDir))
+            {
+                var psi = new ProcessStartInfo
                 {
-                    ShowStatus($"Failed to load map: {mapName}");
-                    return;
-                }
+                    FileName = "dotnet",
+                    Arguments = $"run --project \"{pipelineCliDir}\" -- --export-rpg={mapName} --output=\"{rpgWorldOutDir}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(20000);
 
-                _exporter = new BudgetDungeonExporter(null, _map);
-                ShowStatus($"Loaded: {mapName}");
+                _editorState.SetStatus($"✓ Exported map@2 to rpg_world/{mapName}");
+                ConsoleLogger.LogInfo($"map@2 exported to {rpgWorldOutDir}");
             }
-            catch (Exception ex)
+            else
             {
-                ShowStatus($"Error: {ex.Message}");
+                _editorState.SetStatus($"✓ Saved AMD (Pipeline CLI not found)");
             }
         }
-
-        private void ExportGrid()
+        catch (Exception ex)
         {
-            if (_map == null || _exporter == null || _isExporting) return;
-
-            // Set exporting state and message
-            _isExporting = true;
-            _exportingMessage = "Exporting Grid";
-            
-            // Force one frame render to show the loading overlay
-            Raylib.BeginDrawing();
-            Raylib.ClearBackground(Color.Black);
-            if (_map != null && _renderer != null)
-            {
-                _renderer.DrawMap(_camera);
-                if (_renderer.ShowGrid)
-                    _renderer.DrawGrid(_camera);
-            }
-            if (_showUI)
-                DrawUI();
-            DrawExportingOverlay();
-            Raylib.EndDrawing();
-
-            try
-            {
-                string mapName = _settings.MapExporter.MapName;
-                var mapFolder = Path.Combine(_settings.MapExporter.OutputPath, mapName);
-                Directory.CreateDirectory(mapFolder);
-
-                var jsonPath = Path.Combine(mapFolder, $"{mapName}.json");
-                _exporter.ExportJsonOnly(jsonPath, mapName);
-
-                ShowStatus($"✓ Grid exported to {mapFolder}");
-            }
-            catch (Exception ex)
-            {
-                ShowStatus($"Grid export failed: {ex.Message}");
-            }
-            finally
-            {
-                _isExporting = false;
-            }
+            _editorState.SetStatus($"Export error: {ex.Message}");
+            ConsoleLogger.LogError($"Export error: {ex.Message}");
         }
-
-        private void ExportPNG()
+        finally
         {
-            if (_map == null || _renderer == null || _isExporting) return;
-
-            // Set exporting state and message
-            _isExporting = true;
-            _exportingMessage = "Exporting PNG";
-            
-            // Force one frame render to show the loading overlay
-            Raylib.BeginDrawing();
-            Raylib.ClearBackground(Color.Black);
-            if (_map != null && _renderer != null)
-            {
-                _renderer.DrawMap(_camera);
-                if (_renderer.ShowGrid)
-                    _renderer.DrawGrid(_camera);
-            }
-            if (_showUI)
-                DrawUI();
-            DrawExportingOverlay();
-            Raylib.EndDrawing();
-
-            try
-            {
-                string mapName = _settings.MapExporter.MapName;
-                var mapFolder = Path.Combine(_settings.MapExporter.OutputPath, mapName);
-                Directory.CreateDirectory(mapFolder);
-
-                var pngPath = Path.Combine(mapFolder, $"{mapName}.png");
-                
-                // Render full map to image
-                Image mapImage = _renderer.RenderFullMapToImage();
-                Raylib.ExportImage(mapImage, pngPath);
-                Raylib.UnloadImage(mapImage);
-
-                ShowStatus($"✓ PNG exported to {mapFolder}");
-            }
-            catch (Exception ex)
-            {
-                ShowStatus($"PNG export failed: {ex.Message}");
-            }
-            finally
-            {
-                _isExporting = false;
-            }
+            _isExporting = false;
         }
+    }
 
-        private void ShowStatus(string message)
+    public void ExportGrid()
+    {
+        if (_map == null || _exporter == null || _isExporting) return;
+
+        _isExporting = true;
+        _exportingMessage = "Exporting Grid";
+
+        try
         {
-            _statusMessage = message;
-            _statusTimer = 3.0f;
-            ConsoleLogger.LogInfo(message);
-        }
+            string mapName = _settings.MapExporter.MapName;
+            var mapFolder = Path.Combine(_settings.MapExporter.OutputPath, mapName);
+            Directory.CreateDirectory(mapFolder);
 
-        private void Dispose()
-        {
-            _renderer?.Dispose();
-            Raylib.UnloadFont(_font);
+            var jsonPath = Path.Combine(mapFolder, $"{mapName}.json");
+            _exporter.ExportJsonOnly(jsonPath, mapName);
+
+            _editorState.SetStatus($"✓ Grid exported to {mapFolder}");
         }
+        catch (Exception ex)
+        {
+            _editorState.SetStatus($"Grid export failed: {ex.Message}");
+        }
+        finally
+        {
+            _isExporting = false;
+        }
+    }
+
+    public void ExportPNG()
+    {
+        if (_map == null || _renderer == null || _isExporting) return;
+
+        _isExporting = true;
+        _exportingMessage = "Exporting PNG";
+
+        try
+        {
+            string mapName = _settings.MapExporter.MapName;
+            var mapFolder = Path.Combine(_settings.MapExporter.OutputPath, mapName);
+            Directory.CreateDirectory(mapFolder);
+
+            var pngPath = Path.Combine(mapFolder, $"{mapName}.png");
+
+            Image mapImage = _renderer.RenderFullMapToImage();
+            Raylib.ExportImage(mapImage, pngPath);
+            Raylib.UnloadImage(mapImage);
+
+            _editorState.SetStatus($"✓ PNG exported to {mapFolder}");
+        }
+        catch (Exception ex)
+        {
+            _editorState.SetStatus($"PNG export failed: {ex.Message}");
+        }
+        finally
+        {
+            _isExporting = false;
+        }
+    }
+
+    private void Dispose()
+    {
+        _renderer?.Dispose();
+        _spriteLoader?.Dispose();
+        Raylib.UnloadFont(_font);
     }
 }

@@ -60,6 +60,17 @@ namespace IsometricMapViewer.Loaders
             return texture;
         }
 
+        public IEnumerable<Sprite> GetAllSprites()
+        {
+            foreach (var spriteFile in _spriteFiles.Values)
+            {
+                foreach (var sprite in spriteFile.Sprites)
+                {
+                    yield return sprite;
+                }
+            }
+        }
+
         public void Dispose()
         {
             foreach (var spriteFile in _spriteFiles.Values)
