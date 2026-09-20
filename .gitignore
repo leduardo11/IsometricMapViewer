@@ -5,3 +5,6 @@ obj/
 .vscode/
 
 *.mgstats
+
+# Generated HelbreathAtlasPacker exports
+resources/exported/

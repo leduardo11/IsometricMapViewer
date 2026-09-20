@@ -29,13 +29,53 @@ dotnet run
 
 | Key/Action | Function |
 |------------|----------|
-| **G** | Export Grid (JSON for server) |
-| **P** | Export PNG (image for client) |
-| **F** | Fit map to screen |
-| **TAB** | Toggle UI |
-| **WASD / Arrows** | Pan camera |
-| **Mouse Drag** | Pan camera |
+| **+ / -** (or KP + / -) | Zoom in/out (keyboard; no wheel required) |
 | **Mouse Wheel** | Zoom in/out |
+| **WASD / Arrows** | Pan camera |
+| **Right/Middle Drag** | Pan camera |
+| **F** | Fit map to screen |
+| **1-5** | Select tool (Ground / Object / Collision / Eraser / Eyedropper) |
+| **G / S / O / T / C / #** | Toggle Ground / Shadows / Objects / Trees / Collision / Grid |
+| **Tab** | Toggle sprite palette |
+| **H / F1** | Toggle shortcut legend |
+| **B** | Cycle brush size |
+| **[ / ]** | Cycle selected sprite |
+| **, / .** | Cycle selected frame |
+| **Ctrl+S** | Save map (.amd) |
+| **Ctrl+Z / Ctrl+Y** | Undo / Redo |
+| **Ctrl+1..7, Ctrl+0** | Export formats (see below) |
+
+## Tiles (PAKs)
+
+All PAKs from `repos/helbreath_lite` are vendored under `resources/paks/`
+(`tiles/`, `objects/`, plus `npcs/`, `items/`, `players/`, `effects/`, `pets/`,
+`interface/`, `art/`). The editor reads the canonical tile/object PAKs directly
+through `HelbreathAtlasPacker`'s `PakReader`/`SpriteCache`, so every map tile is
+available in the palette. Legacy `resources/sprites/*.spr` files are only a
+fallback for PAKs that are missing.
+
+## HelbreathAtlasPacker Exports
+
+The editor references `HelbreathAssetPipeline.Packer.Core` and can emit every
+map export format the packer supports. Output root is
+`MapExporter:AtlasOutputPath` in `appsettings.json` (default `resources/exported`).
+
+| Hotkey | Format | Output |
+|--------|--------|--------|
+| Ctrl+1 | Base package | `<root>/<map>/` (`atlas.json`, `tilemap.json`, `collision.json`, `manifest.json`, `frame-map.json`, `atlases/`) |
+| Ctrl+2 (Ctrl+E) | map@2 RPG | `<root>/rpg/<map>/<map>.map.json` + `atlases/` |
+| Ctrl+3 | Godot | `<root>/<map>/<map> TileSet.tres`, `<map>.tscn`, `minimap.png`, `map-info.json` |
+| Ctrl+4 | Tiled | `<root>/tiled/<map>/` (`ground.tsx`, `objects.tsx`, PNGs, `manifest.json`) |
+| Ctrl+5 | Map shot | `<root>/shots/<map>-shot.png` |
+| Ctrl+6 | Master tiles | `<root>/tiles/` (full tile/object vocabulary atlas) |
+| Ctrl+7 | Olympia | `<root>/OlympiaAssets/` (needs `MapExporter:OlympiaSourcePath`) |
+| Ctrl+0 | Export all | All of the above for the current map + master tiles |
+
+CLI equivalents:
+
+```bash
+dotnet run -- --atlas <package|rpg|godot|tiled|map-shot|master|olympia|all> <mapname> [output-root]
+```
 
 ## UI Buttons
 
@@ -122,6 +162,8 @@ foreach (var tile in data.Tiles)
 
 - .NET 10.0
 - Raylib-cs 7.0.2
+- `HelbreathAtlasPacker` checked out as a sibling directory (`../HelbreathAtlasPacker`);
+  the map exporter project-references `HelbreathAssetPipeline.Packer.Core`.
 
 ## Building
 

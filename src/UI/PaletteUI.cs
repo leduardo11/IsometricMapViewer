@@ -35,19 +35,20 @@ public class PaletteUI
     {
         var all = spriteLoader.GetAllSprites().ToList();
 
-        // Categorize into Ground (0..32, 223..229, 300..545 excluding trees/objects) vs Objects (51..96, 100..145, 200..248)
+        // Categorize into Ground (terrain tiles) vs Objects (structures, trees,
+        // placeable objects), matching the PAK catalog's tiles/ vs objects/ split.
         foreach (var s in all)
         {
             if (s.Texture.Id == 0) continue;
 
-            // Trees and objects
-            if ((s.Index >= 51 && s.Index <= 96) ||
+            // Structures (50..69), trees (100..145) and objects (200..248)
+            if ((s.Index >= 50 && s.Index <= 69) ||
                 (s.Index >= 100 && s.Index <= 145) ||
                 (s.Index >= 200 && s.Index <= 248))
             {
                 _objectSprites.Add(s);
             }
-            else if (s.Index != 150) // exclude raw shadow sprite pack from palette selection
+            else if (s.Index < 150 || s.Index > 195) // exclude raw shadow sprite pack from palette selection
             {
                 _groundSprites.Add(s);
             }

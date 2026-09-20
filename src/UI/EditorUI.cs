@@ -145,7 +145,7 @@ public static class EditorUI
     private static void DrawLegendDock(Font font, EditorState state)
     {
         int dockW = 240;
-        int dockH = 360;
+        int dockH = 520;
         int dockX = 16;
         int dockY = 328;
 
@@ -178,9 +178,20 @@ public static class EditorUI
         Raylib.DrawTextEx(font, "PROJECT & CAMERA", new Vector2(dockX + 14, y), 12, 1, AccentCyan);
         y += 18;
         DrawLegendLine(font, "^S", "Save Map (.amd)", dockX + 14, y); y += 20;
-        DrawLegendLine(font, "^E", "Export map@2 (rpg)", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "+ / -", "Zoom In / Out", dockX + 14, y); y += 20;
         DrawLegendLine(font, "^Z / ^Y", "Undo / Redo", dockX + 14, y); y += 20;
-        DrawLegendLine(font, "R-Drag", "Pan  | Wheel: Zoom", dockX + 14, y);
+        DrawLegendLine(font, "R-Drag", "Pan  | Wheel: Zoom", dockX + 14, y); y += 20;
+
+        y += 4;
+        Raylib.DrawLine(dockX + 12, y, dockX + dockW - 12, y, BorderDark);
+        y += 8;
+
+        Raylib.DrawTextEx(font, "EXPORT (ATLASPACKER)", new Vector2(dockX + 14, y), 12, 1, AccentGold);
+        y += 18;
+        DrawLegendLine(font, "^1", "Package   ^2 RPG", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "^3", "Godot     ^4 Tiled", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "^5", "Map Shot  ^6 Master", dockX + 14, y); y += 20;
+        DrawLegendLine(font, "^7", "Olympia   ^0 Export All", dockX + 14, y);
     }
 
     private static void DrawLegendLine(Font font, string badge, string desc, int x, int y)

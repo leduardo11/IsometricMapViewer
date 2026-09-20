@@ -16,6 +16,7 @@ public class ExporterApp
 {
     private Map _map = null!;
     private BudgetDungeonExporter _exporter = null!;
+    private AtlasPackerExporter _atlasExporter = null!;
     private CameraHandler _camera = null!;
     private GameRenderer _renderer = null!;
     private SpriteLoader _spriteLoader = null!;
@@ -82,7 +83,7 @@ public class ExporterApp
 
     private void LoadContent()
     {
-        _font = Raylib.LoadFont("resources/fonts/DejaVuSansMono.ttf");
+        _font = Raylib.LoadFont(Path.Combine(ResourcePaths.Fonts, "DejaVuSansMono.ttf"));
         _spriteLoader = new SpriteLoader();
         _spriteLoader.LoadSprites();
 
@@ -107,8 +108,13 @@ public class ExporterApp
             _history,
             _spriteLoader,
             SaveMapAmd,
-            ExportMapV2
+            ExportAtlas
         );
+
+        _atlasExporter = new AtlasPackerExporter(
+            ResourcePaths.Paks,
+            ResourcePaths.Maps,
+            _settings.MapExporter.AtlasOutputPath);
     }
 
     private void Update()
@@ -183,7 +189,7 @@ public class ExporterApp
     {
         try
         {
-            var mapPath = Path.Combine("resources", "maps", $"{mapName}.amd");
+            var mapPath = Path.Combine(ResourcePaths.Maps, $"{mapName}.amd");
             _map = new Map();
 
             if (!_map.Load(mapPath))
@@ -207,7 +213,7 @@ public class ExporterApp
         try
         {
             string mapName = _settings.MapExporter.MapName;
-            string mapPath = Path.Combine("resources", "maps", $"{mapName}.amd");
+            string mapPath = Path.Combine(ResourcePaths.Maps, $"{mapName}.amd");
 
             // Create backup on first edit if not yet created
             string bakPath = mapPath + ".bak";
@@ -227,68 +233,60 @@ public class ExporterApp
         }
     }
 
-    private void ExportMapV2()
+    private void ExportAtlas(AtlasExportKind kind)
     {
-        if (_map == null || _isExporting) return;
+        if (_map == null || _atlasExporter == null || _isExporting) return;
+
+        // Persist edits first so the packer compiles the live map.
+        SaveMapAmd();
 
         _isExporting = true;
-        _exportingMessage = "Exporting map@2 Package";
+        _exportingMessage = $"Exporting {kind}";
 
         try
         {
-            // 1. Save AMD locally first
-            SaveMapAmd();
-
             string mapName = _settings.MapExporter.MapName;
-            string pipelineMapDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "HelbreathAssetPipeline", "assets", "maps"));
-            string rpgWorldOutDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "rpg_world", "assets", "maps", mapName));
-
-            // Copy updated AMD to HelbreathAssetPipeline assets if available
-            if (Directory.Exists(pipelineMapDir))
+            string result = kind switch
             {
-                string targetAmd = Path.Combine(pipelineMapDir, $"{mapName}.amd");
-                File.Copy(Path.Combine("resources", "maps", $"{mapName}.amd"), targetAmd, overwrite: true);
-            }
+                AtlasExportKind.Package => _atlasExporter.ExportPackage(mapName),
+                AtlasExportKind.Rpg => _atlasExporter.ExportRpg(mapName),
+                AtlasExportKind.Godot => _atlasExporter.ExportGodot(mapName),
+                AtlasExportKind.Tiled => _atlasExporter.ExportTiled(mapName),
+                AtlasExportKind.MapShot => _atlasExporter.ExportMapShot(mapName),
+                AtlasExportKind.MasterTiles => _atlasExporter.ExportMasterTiles(),
+                AtlasExportKind.Olympia => _atlasExporter.ExportOlympia(ResolveOlympiaSource()),
+                AtlasExportKind.All => RunExportAll(mapName),
+                _ => string.Empty
+            };
 
-            // Invoke pipeline CLI to compile map@2
-            string pipelineCliDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "HelbreathAssetPipeline", "src", "HelbreathAssetPipeline.Packer.CLI"));
-            if (Directory.Exists(pipelineCliDir))
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "dotnet",
-                    Arguments = $"run --project \"{pipelineCliDir}\" -- --export-rpg={mapName} --output=\"{rpgWorldOutDir}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(20000);
-
-                // Also copy the .amd alongside the exported map@2 package
-                if (Directory.Exists(rpgWorldOutDir))
-                {
-                    File.Copy(Path.Combine("resources", "maps", $"{mapName}.amd"), Path.Combine(rpgWorldOutDir, $"{mapName}.amd"), overwrite: true);
-                }
-
-                _editorState.SetStatus($"✓ Exported map@2 & AMD to rpg_world/{mapName}");
-                ConsoleLogger.LogInfo($"map@2 and AMD exported to {rpgWorldOutDir}");
-            }
-            else
-            {
-                _editorState.SetStatus($"✓ Saved AMD (Pipeline CLI not found)");
-            }
+            _editorState.SetStatus($"✓ {kind} exported: {result}");
+            ConsoleLogger.LogInfo($"{kind} export complete: {result}");
         }
         catch (Exception ex)
         {
-            _editorState.SetStatus($"Export error: {ex.Message}");
-            ConsoleLogger.LogError($"Export error: {ex.Message}");
+            _editorState.SetStatus($"{kind} export failed: {ex.Message}");
+            ConsoleLogger.LogError($"{kind} export error: {ex.Message}");
         }
         finally
         {
             _isExporting = false;
         }
+    }
+
+    private string RunExportAll(string mapName)
+    {
+        _atlasExporter.ExportAll(mapName);
+        return Path.Combine(_atlasExporter.OutputRoot, mapName);
+    }
+
+    private string ResolveOlympiaSource()
+    {
+        string configured = _settings.MapExporter.OlympiaSourcePath;
+        if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured))
+            return configured;
+
+        throw new InvalidOperationException(
+            "Set MapExporter:OlympiaSourcePath in appsettings.json to an Olympia OPK source tree.");
     }
 
     public void ExportGrid()

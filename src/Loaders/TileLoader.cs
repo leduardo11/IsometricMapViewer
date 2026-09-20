@@ -48,7 +48,7 @@ namespace IsometricMapViewer.Loaders
 
             Parallel.ForEach(Constants.SpritesToLoad, spriteLoad =>
             {
-                string filePath = Path.Combine("resources", "sprites", spriteLoad.fileName);
+                string filePath = Path.Combine(ResourcePaths.Sprites, spriteLoad.fileName);
 
                 if (!File.Exists(filePath))
                 {
@@ -98,7 +98,7 @@ namespace IsometricMapViewer.Loaders
                 return;
             }
 
-            string filePath = Path.Combine("resources", "sprites", spriteLoad.fileName);
+            string filePath = Path.Combine(ResourcePaths.Sprites, spriteLoad.fileName);
 
             if (!spriteSheets.ContainsKey(filePath))
             {
@@ -125,7 +125,7 @@ namespace IsometricMapViewer.Loaders
 
             foreach (var (fileName, startIndex, count) in Constants.SpritesToLoad)
             {
-                string filePath = Path.Combine("resources", "sprites", fileName);
+                string filePath = Path.Combine(ResourcePaths.Sprites, fileName);
 
                 if (spriteSheets.TryGetValue(filePath, out var spriteFile))
                 {

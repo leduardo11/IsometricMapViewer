@@ -16,7 +16,7 @@ public class EditorInputHandler
     private readonly CommandHistory _history;
     private readonly SpriteLoader _spriteLoader;
     private readonly Action _onSave;
-    private readonly Action _onExportV2;
+    private readonly Action<AtlasExportKind> _onAtlasExport;
 
     private BatchEditorCommand? _activeStroke;
     private readonly HashSet<(int X, int Y)> _strokeVisited = [];
@@ -28,7 +28,7 @@ public class EditorInputHandler
         CommandHistory history,
         SpriteLoader spriteLoader,
         Action onSave,
-        Action onExportV2)
+        Action<AtlasExportKind> onAtlasExport)
     {
         _map = map;
         _camera = camera;
@@ -36,7 +36,7 @@ public class EditorInputHandler
         _history = history;
         _spriteLoader = spriteLoader;
         _onSave = onSave;
-        _onExportV2 = onExportV2;
+        _onAtlasExport = onAtlasExport;
 
         PopulateAvailableSprites();
     }
@@ -52,13 +52,13 @@ public class EditorInputHandler
             {
                 if (sprite.Texture.Id == 0) continue;
 
-                if ((sprite.Index >= 51 && sprite.Index <= 96) ||
+                if ((sprite.Index >= 50 && sprite.Index <= 69) ||
                     (sprite.Index >= 100 && sprite.Index <= 145) ||
                     (sprite.Index >= 200 && sprite.Index <= 248))
                 {
                     _state.AvailableObjectSprites.Add((short)sprite.Index);
                 }
-                else if (sprite.Index != 150)
+                else if (sprite.Index < 150 || sprite.Index > 195)
                 {
                     _state.AvailableGroundSprites.Add((short)sprite.Index);
                 }
@@ -104,7 +104,7 @@ public class EditorInputHandler
         if (mouse.Y < 48) return true;
 
         // Left Tool Dock & Legend Panel
-        int maxDockY = _state.ShowLegend ? 670 : 350;
+        int maxDockY = _state.ShowLegend ? 848 : 350;
         if (mouse.X >= 16 && mouse.X <= 286 && mouse.Y >= 64 && mouse.Y <= maxDockY) return true;
 
         // Right Palette Panel
@@ -128,6 +128,16 @@ public class EditorInputHandler
         {
             float zoomFactor = wheel > 0 ? 1.15f : 0.85f;
             _camera.ZoomAt(zoomFactor, Raylib.GetMousePosition());
+        }
+
+        // Keyboard Zoom (+ / -) toward screen center, for wheels that are broken.
+        if (Raylib.IsKeyPressed(KeyboardKey.Equal) || Raylib.IsKeyPressed(KeyboardKey.KpAdd))
+        {
+            _camera.ZoomAt(1.15f, new Vector2(Raylib.GetScreenWidth() / 2f, Raylib.GetScreenHeight() / 2f));
+        }
+        else if (Raylib.IsKeyPressed(KeyboardKey.Minus) || Raylib.IsKeyPressed(KeyboardKey.KpSubtract))
+        {
+            _camera.ZoomAt(0.85f, new Vector2(Raylib.GetScreenWidth() / 2f, Raylib.GetScreenHeight() / 2f));
         }
 
         // Keyboard Panning (WASD / Arrows)
@@ -169,7 +179,20 @@ public class EditorInputHandler
         }
         else if (ctrl && Raylib.IsKeyPressed(KeyboardKey.E))
         {
-            _onExportV2();
+            _onAtlasExport(AtlasExportKind.Rpg);
+        }
+
+        // HelbreathAtlasPacker export formats (Ctrl + number)
+        if (ctrl)
+        {
+            if (Raylib.IsKeyPressed(KeyboardKey.One)) _onAtlasExport(AtlasExportKind.Package);
+            else if (Raylib.IsKeyPressed(KeyboardKey.Two)) _onAtlasExport(AtlasExportKind.Rpg);
+            else if (Raylib.IsKeyPressed(KeyboardKey.Three)) _onAtlasExport(AtlasExportKind.Godot);
+            else if (Raylib.IsKeyPressed(KeyboardKey.Four)) _onAtlasExport(AtlasExportKind.Tiled);
+            else if (Raylib.IsKeyPressed(KeyboardKey.Five)) _onAtlasExport(AtlasExportKind.MapShot);
+            else if (Raylib.IsKeyPressed(KeyboardKey.Six)) _onAtlasExport(AtlasExportKind.MasterTiles);
+            else if (Raylib.IsKeyPressed(KeyboardKey.Seven)) _onAtlasExport(AtlasExportKind.Olympia);
+            else if (Raylib.IsKeyPressed(KeyboardKey.Zero)) _onAtlasExport(AtlasExportKind.All);
         }
 
         // Palette Toggle [Tab]

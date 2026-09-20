@@ -175,7 +175,10 @@ namespace IsometricMapViewer
                 using var stream = File.Create(amdFilePath);
                 using var writer = new BinaryWriter(stream);
 
-                string header = $"MAPSIZEX={Width},MAPSIZEY={Height}\0";
+                // Space-separated canonical header: understood by both the viewer's
+                // ParseHeader and HelbreathAtlasPacker's AmdParser (which otherwise
+                // defaults TILESIZE to 9 and misreads the 10-byte tile records).
+                string header = $"MAPSIZEX = {Width} MAPSIZEY = {Height} TILESIZE = {Constants.ExpectedTileSize}\0";
                 byte[] headerBytes = System.Text.Encoding.ASCII.GetBytes(header);
 
                 if (headerBytes.Length > Constants.HeaderBufferSize)
